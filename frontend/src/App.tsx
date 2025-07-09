@@ -6,6 +6,23 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { Button } from "@/components/ui/button";
 
+// Add saveToFile function
+const saveToFile = (content: string, filename: string, format: 'txt' | 'md' = 'md') => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+  const extension = format;
+  const fullFilename = `${filename}_${timestamp}.${extension}`;
+  
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fullFilename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export default function App() {
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
     ProcessedEvent[]
@@ -94,6 +111,32 @@ export default function App() {
           ...prev,
           [lastMessage.id!]: [...processedEventsTimeline],
         }));
+
+        // Automatically save the AI response to file
+        try {
+          const messageContent = typeof lastMessage.content === "string"
+            ? lastMessage.content
+            : JSON.stringify(lastMessage.content);
+
+          // Find the user's question for filename
+          const messageIndex = thread.messages.findIndex(msg => msg.id === lastMessage.id);
+          const previousMessage = messageIndex > 0 ? thread.messages[messageIndex - 1] : null;
+          const userQuestion = previousMessage && previousMessage.type === "human" 
+            ? (typeof previousMessage.content === "string" ? previousMessage.content : "query")
+            : "ai_response";
+          
+          // Create a safe filename from the user question
+          const safeFilename = userQuestion
+            .slice(0, 50)
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .replace(/\s+/g, '_')
+            .toLowerCase() || 'ai_response';
+          
+          saveToFile(messageContent, safeFilename, 'md');
+          console.log(`Response automatically saved as: ${safeFilename}_${new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]}.md`);
+        } catch (err) {
+          console.error("Failed to auto-save response: ", err);
+        }
       }
       hasFinalizeEventOccurredRef.current = false;
     }
