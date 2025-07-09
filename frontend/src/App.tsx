@@ -23,6 +23,126 @@ const saveToFile = (content: string, filename: string, format: 'txt' | 'md' = 'm
   URL.revokeObjectURL(url);
 };
 
+// Add design blueprint generation function
+const generateDesignBlueprint = (content: string, userQuestion: string): string => {
+  // Parse content to identify main sections
+  const lines = content.split('\n').filter(line => line.trim());
+  const sections = [];
+  let currentSection = { title: '', content: '', level: 0 };
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Detect headers
+    if (trimmedLine.startsWith('#')) {
+      if (currentSection.title) {
+        sections.push({ ...currentSection });
+      }
+      const level = (trimmedLine.match(/^#+/) || [''])[0].length;
+      currentSection = {
+        title: trimmedLine.replace(/^#+\s*/, ''),
+        content: '',
+        level
+      };
+    } else if (trimmedLine) {
+      currentSection.content += trimmedLine + '\n';
+    }
+  }
+  
+  if (currentSection.title) {
+    sections.push(currentSection);
+  }
+
+  // Generate blueprint based on content analysis
+  const blueprint = `# 🎯 设计施工图 - ${userQuestion.slice(0, 30)}...
+
+## 📊 内容分析
+- **总页数**: ${Math.max(sections.length, 3)}页
+- **内容类型**: ${analyzeContentType(content)}
+- **视觉风格**: 现代简约信息图表风格
+- **色彩方案**: 蓝绿渐进色系
+
+---
+
+${sections.map((section, index) => generatePageBlueprint(section, index + 1, sections.length)).join('\n\n---\n\n')}
+
+---
+
+## 🎨 全局设计规范
+- **字体**: 思源黑体 / Inter
+- **主色调**: #3B82F6 (蓝色), #10B981 (绿色), #8B5CF6 (紫色)
+- **辅助色**: #F3F4F6 (浅灰), #1F2937 (深灰)
+- **圆角**: 8px-16px
+- **阴影**: shadow-lg (0 10px 15px -3px rgba(0, 0, 0, 0.1))
+- **间距**: 4的倍数系统 (16px, 24px, 32px)
+
+## 📱 响应式要求
+- **桌面**: 1200px+ 三栏布局
+- **平板**: 768px-1199px 两栏布局  
+- **手机**: <768px 单栏堆叠
+`;
+
+  return blueprint;
+};
+
+const analyzeContentType = (content: string): string => {
+  const lowerContent = content.toLowerCase();
+  
+  if (lowerContent.includes('比较') || lowerContent.includes('对比') || lowerContent.includes('vs')) {
+    return '对比分析图表';
+  } else if (lowerContent.includes('步骤') || lowerContent.includes('流程') || lowerContent.includes('过程')) {
+    return '流程指导图表';
+  } else if (lowerContent.includes('数据') || lowerContent.includes('统计') || lowerContent.includes('%')) {
+    return '数据可视化图表';
+  } else if (lowerContent.includes('方法') || lowerContent.includes('技巧') || lowerContent.includes('如何')) {
+    return '方法指导图表';
+  }
+  return '综合信息图表';
+};
+
+const generatePageBlueprint = (section: any, pageNum: number, totalPages: number): string => {
+  const icons = ['📊', '🔍', '⚡', '🎯', '💡', '🛠', '📈', '🎨', '🚀'];
+  const bgColors = ['bg-blue-100', 'bg-green-100', 'bg-purple-100', 'bg-yellow-100', 'bg-pink-100'];
+  const layouts = ['上下分割', '左右分割', '卡片网格', '时间轴', '中心辐射'];
+  
+  const selectedIcon = icons[pageNum % icons.length];
+  const selectedBg = bgColors[pageNum % bgColors.length];
+  const selectedLayout = layouts[pageNum % layouts.length];
+  
+  // Determine page type based on content
+  let pageType = '信息展示页';
+  if (section.content.includes('步骤') || section.content.includes('方法')) {
+    pageType = '操作指导页';
+  } else if (section.content.includes('优势') || section.content.includes('缺点')) {
+    pageType = '优劣对比页';
+  } else if (section.content.includes('数据') || section.content.includes('结果')) {
+    pageType = '数据展示页';
+  }
+
+  return `## 信息图：${pageNum}/${totalPages}
+- **页面类型**: ${pageType}
+- **页面标题**: ${section.title} ${selectedIcon}
+- **核心内容与视觉构思**:
+  
+  **布局方案**: ${selectedLayout}
+  
+  **主要区域**:
+  - 构思：${selectedBg} 圆角卡片容器
+  - 标题区：大字号标题 + 装饰图标 ${selectedIcon}
+  - 内容区：${section.content.slice(0, 50)}...
+  
+  **交互元素**:
+  - 悬停效果：shadow-lg + scale-105
+  - 渐变边框：border-gradient-to-r
+  - 动画：fade-in-up 延迟 ${pageNum * 100}ms
+  
+  **视觉层次**:
+  - 主标题：text-2xl font-bold text-gray-900
+  - 副标题：text-lg font-medium text-gray-700  
+  - 正文：text-base text-gray-600 leading-relaxed
+  - 强调：text-blue-600 font-semibold`;
+};
+
 export default function App() {
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
     ProcessedEvent[]
@@ -112,7 +232,7 @@ export default function App() {
           [lastMessage.id!]: [...processedEventsTimeline],
         }));
 
-        // Automatically save the AI response to file
+        // Automatically save the AI response to file with design blueprint
         try {
           const messageContent = typeof lastMessage.content === "string"
             ? lastMessage.content
@@ -132,8 +252,15 @@ export default function App() {
             .replace(/\s+/g, '_')
             .toLowerCase() || 'ai_response';
           
+          // Save original markdown file
           saveToFile(messageContent, safeFilename, 'md');
+          
+          // Generate and save design blueprint
+          const blueprint = generateDesignBlueprint(messageContent, userQuestion);
+          saveToFile(blueprint, `${safeFilename}_设计施工图`, 'md');
+          
           console.log(`Response automatically saved as: ${safeFilename}_${new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]}.md`);
+          console.log(`Design blueprint saved as: ${safeFilename}_设计施工图_${new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]}.md`);
         } catch (err) {
           console.error("Failed to auto-save response: ", err);
         }
