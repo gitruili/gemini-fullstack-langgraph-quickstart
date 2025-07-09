@@ -367,23 +367,25 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
       
-      <div className="flex gap-2 self-end mt-2">
+      <div className="flex gap-2 justify-end mt-4 mb-2">
         <Button
-          variant="default"
-          className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 ${
-            message.content.length > 0 ? "visible" : "hidden"
-          }`}
+          variant="outline"
+          size="sm"
+          className="bg-neutral-700 hover:bg-neutral-600 text-neutral-200 border-neutral-500"
           onClick={() => handleCopy(messageContent, message.id!)}
         >
           {copiedMessageId === message.id ? "Copied" : "Copy"}
-          {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
+          {copiedMessageId === message.id ? (
+            <CopyCheck className="ml-1 h-4 w-4" />
+          ) : (
+            <Copy className="ml-1 h-4 w-4" />
+          )}
         </Button>
         
         <Button
-          variant="default"
-          className={`cursor-pointer bg-blue-700 border-blue-600 text-blue-100 hover:bg-blue-600 ${
-            message.content.length > 0 ? "visible" : "hidden"
-          }`}
+          variant="outline"
+          size="sm"
+          className="bg-blue-700 hover:bg-blue-600 text-blue-100 border-blue-500"
           onClick={handleGenerateBlueprint}
         >
           {showBlueprint ? "Hide Blueprint" : "Blueprint"}
