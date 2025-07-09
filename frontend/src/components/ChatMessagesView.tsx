@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Copy, CopyCheck } from "lucide-react";
+import { Loader2, Copy, CopyCheck, FileText, X } from "lucide-react";
 import { InputForm } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
 import { useState, ReactNode } from "react";
@@ -12,6 +12,111 @@ import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
+
+// Blueprint generation function
+const generateBlueprint = (content: string): string => {
+  const lines = content.split('\n').filter(line => line.trim());
+  const sections: string[] = [];
+  let currentSection = '';
+  let pageCount = 1;
+  
+  // Analyze content structure
+  const headers = lines.filter(line => line.startsWith('#'));
+  const totalPages = Math.max(headers.length, 3);
+  
+  let blueprintPages: string[] = [];
+  
+  headers.forEach((header, index) => {
+    const level = (header.match(/^#+/) || [''])[0].length;
+    const title = header.replace(/^#+\s*/, '');
+    
+    // Determine page type based on content
+    let pageType = '信息展示';
+    if (title.includes('对比') || title.includes('比较') || title.includes('vs')) {
+      pageType = '核心要点对比';
+    } else if (title.includes('步骤') || title.includes('流程') || title.includes('方法')) {
+      pageType = '流程指南';
+    } else if (title.includes('总结') || title.includes('结论')) {
+      pageType = '总结要点';
+    } else if (title.includes('介绍') || title.includes('概述')) {
+      pageType = '概念介绍';
+    }
+    
+    // Generate visual concepts based on content type
+    let visualConcept = '';
+    let layoutStructure = '';
+    let colorScheme = '';
+    
+    if (pageType === '核心要点对比') {
+      layoutStructure = '左右对比结构';
+      visualConcept = '对比卡片设计';
+      colorScheme = 'bg-blue-100 vs bg-green-100';
+    } else if (pageType === '流程指南') {
+      layoutStructure = '垂直流程结构';
+      visualConcept = '步骤卡片 + 连接线';
+      colorScheme = 'bg-gradient-to-r from-blue-50 to-indigo-100';
+    } else if (pageType === '总结要点') {
+      layoutStructure = '网格布局';
+      visualConcept = '要点图标 + 简洁文字';
+      colorScheme = 'bg-gray-50 with accent colors';
+    } else {
+      layoutStructure = '标准内容布局';
+      visualConcept = '图文混排';
+      colorScheme = 'bg-white with subtle shadows';
+    }
+    
+    // Select appropriate icon
+    let icon = '📄';
+    if (pageType === '核心要点对比') icon = '⚖️';
+    else if (pageType === '流程指南') icon = '🔄';
+    else if (pageType === '总结要点') icon = '✅';
+    else if (pageType === '概念介绍') icon = '💡';
+    
+    const blueprint = `信息图：${index + 1}/${totalPages}
+- 页面类型：${pageType}
+- 页面标题：${title}
+- 核心内容与视觉构思：
+  布局：${layoutStructure}
+  主要元素：
+    - 构思：${colorScheme}
+    - 标题：${title} + 图标 ${icon}
+    - 视觉概念：${visualConcept}
+  内容重点：
+    - 核心信息提取与层次化展示
+    - 视觉引导与用户体验优化`;
+    
+    blueprintPages.push(blueprint);
+  });
+  
+  // If no headers found, create a general blueprint
+  if (blueprintPages.length === 0) {
+    blueprintPages.push(`信息图：1/1
+- 页面类型：综合内容展示
+- 页面标题：AI 生成内容
+- 核心内容与视觉构思：
+  布局：标准文档布局
+  主要元素：
+    - 构思：bg-white with clean typography
+    - 标题：内容概览 + 图标 📋
+    - 视觉概念：简洁文档设计
+  内容重点：
+    - 信息清晰呈现
+    - 易读性优化`);
+  }
+  
+  return `🎯 设计蓝图生成
+
+原子设计师 · 大纲：
+
+${blueprintPages.join('\n\n')}
+
+---
+💡 设计说明：
+- 采用渐进式信息展示
+- 注重视觉层次与用户体验
+- 配色方案支持品牌一致性
+- 响应式设计适配多设备`;
+};
 
 // Markdown component props type from former ReportView
 type MdComponentProps = {
@@ -181,6 +286,9 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   handleCopy,
   copiedMessageId,
 }) => {
+  const [showBlueprint, setShowBlueprint] = useState(false);
+  const [blueprint, setBlueprint] = useState<string>('');
+
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
@@ -189,6 +297,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const messageContent = typeof message.content === "string"
     ? message.content
     : JSON.stringify(message.content);
+
+  const handleGenerateBlueprint = () => {
+    const generatedBlueprint = generateBlueprint(messageContent);
+    setBlueprint(generatedBlueprint);
+    setShowBlueprint(true);
+  };
 
   return (
     <div className={`relative break-words flex flex-col`}>
@@ -200,19 +314,53 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           />
         </div>
       )}
+      
+      {showBlueprint && (
+        <div className="mb-4 p-4 bg-neutral-900 rounded-lg border border-neutral-600">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold text-blue-400">🎯 设计蓝图</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowBlueprint(false)}
+              className="text-neutral-400 hover:text-neutral-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="text-sm text-neutral-300 whitespace-pre-line font-mono">
+            {blueprint}
+          </div>
+        </div>
+      )}
+      
       <ReactMarkdown components={mdComponents}>
         {messageContent}
       </ReactMarkdown>
-      <Button
-        variant="default"
-        className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end mt-2 ${
-          message.content.length > 0 ? "visible" : "hidden"
-        }`}
-        onClick={() => handleCopy(messageContent, message.id!)}
-      >
-        {copiedMessageId === message.id ? "Copied" : "Copy"}
-        {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
-      </Button>
+      
+      <div className="flex gap-2 self-end mt-2">
+        <Button
+          variant="default"
+          className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 ${
+            message.content.length > 0 ? "visible" : "hidden"
+          }`}
+          onClick={() => handleCopy(messageContent, message.id!)}
+        >
+          {copiedMessageId === message.id ? "Copied" : "Copy"}
+          {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
+        </Button>
+        
+        <Button
+          variant="default"
+          className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 ${
+            message.content.length > 0 ? "visible" : "hidden"
+          }`}
+          onClick={handleGenerateBlueprint}
+        >
+          Blueprint
+          <FileText className="ml-1 h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
