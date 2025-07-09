@@ -299,9 +299,34 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     : JSON.stringify(message.content);
 
   const handleGenerateBlueprint = () => {
-    const generatedBlueprint = generateBlueprint(messageContent);
-    setBlueprint(generatedBlueprint);
-    setShowBlueprint(true);
+    console.log('Blueprint button clicked!'); // Debug log
+    try {
+      const generatedBlueprint = generateBlueprint(messageContent);
+      console.log('Generated blueprint:', generatedBlueprint); // Debug log
+      setBlueprint(generatedBlueprint);
+      setShowBlueprint(true);
+      console.log('Blueprint state updated, showBlueprint:', true); // Debug log
+    } catch (error) {
+      console.error('Error generating blueprint:', error);
+      // Fallback blueprint
+      setBlueprint(`🎯 设计蓝图生成
+
+原子设计师 · 大纲：
+
+信息图：1/1
+- 页面类型：内容展示
+- 页面标题：AI 响应内容
+- 核心内容与视觉构思：
+  布局：标准文档布局
+  主要元素：
+    - 构思：简洁清晰的排版设计
+    - 标题：响应内容 + 图标 📋
+    - 视觉概念：现代化信息展示
+  内容重点：
+    - 信息层次化展示
+    - 用户体验优化`);
+      setShowBlueprint(true);
+    }
   };
 
   return (
@@ -315,28 +340,32 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
       
+      <ReactMarkdown components={mdComponents}>
+        {messageContent}
+      </ReactMarkdown>
+      
       {showBlueprint && (
-        <div className="mb-4 p-4 bg-neutral-900 rounded-lg border border-neutral-600">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold text-blue-400">🎯 设计蓝图</h3>
+        <div className="mt-4 p-6 bg-blue-900/20 rounded-lg border-2 border-blue-500/30 shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-blue-300 flex items-center gap-2">
+              🎯 设计蓝图
+            </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowBlueprint(false)}
-              className="text-neutral-400 hover:text-neutral-200"
+              className="text-blue-400 hover:text-blue-200 hover:bg-blue-800/30"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="text-sm text-neutral-300 whitespace-pre-line font-mono">
-            {blueprint}
+          <div className="bg-neutral-800/50 p-4 rounded-md">
+            <pre className="text-sm text-blue-100 whitespace-pre-wrap font-mono leading-relaxed">
+              {blueprint || '蓝图生成中...'}
+            </pre>
           </div>
         </div>
       )}
-      
-      <ReactMarkdown components={mdComponents}>
-        {messageContent}
-      </ReactMarkdown>
       
       <div className="flex gap-2 self-end mt-2">
         <Button
@@ -352,12 +381,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         
         <Button
           variant="default"
-          className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 ${
+          className={`cursor-pointer bg-blue-700 border-blue-600 text-blue-100 hover:bg-blue-600 ${
             message.content.length > 0 ? "visible" : "hidden"
           }`}
           onClick={handleGenerateBlueprint}
         >
-          Blueprint
+          {showBlueprint ? "Hide Blueprint" : "Blueprint"}
           <FileText className="ml-1 h-4 w-4" />
         </Button>
       </div>
