@@ -16,63 +16,108 @@ import {
 // Blueprint generation function
 const generateBlueprint = (content: string): string => {
   const lines = content.split('\n').filter(line => line.trim());
-  const sections: string[] = [];
-  let currentSection = '';
-  let pageCount = 1;
   
-  // Analyze content structure
-  const headers = lines.filter(line => line.startsWith('#'));
-  const totalPages = Math.max(headers.length, 3);
+  // Analyze content structure more thoroughly
+  const headers = lines.filter(line => line.match(/^#{1,6}\s/));
+  const listItems = lines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/));
+  const links = content.match(/\[([^\]]+)\]\([^)]+\)/g) || [];
+  const codeBlocks = content.match(/```[\s\S]*?```/g) || [];
+  
+  // Detect content themes and patterns
+  const contentLower = content.toLowerCase();
+  const hasComparison = /vs|versus|compared?|differ|advantage|disadvantage|better|worse|pros?|cons?/.test(contentLower);
+  const hasProcess = /step|process|procedure|method|how to|guide|tutorial|first|second|third|then|next|finally/.test(contentLower);
+  const hasDataNumbers = /\d+%|\d+\.\d+|statistics?|data|research|study|survey|result/.test(contentLower);
+  const hasTechnical = /code|api|function|algorithm|implementation|technical|programming/.test(contentLower);
+  const hasTimeline = /\d{4}|\b(january|february|march|april|may|june|july|august|september|october|november|december)|timeline|history|evolution/.test(contentLower);
   
   let blueprintPages: string[] = [];
   
-  headers.forEach((header, index) => {
-    const level = (header.match(/^#+/) || [''])[0].length;
-    const title = header.replace(/^#+\s*/, '');
-    
-    // Determine page type based on content
-    let pageType = '信息展示';
-    if (title.includes('对比') || title.includes('比较') || title.includes('vs')) {
-      pageType = '核心要点对比';
-    } else if (title.includes('步骤') || title.includes('流程') || title.includes('方法')) {
-      pageType = '流程指南';
-    } else if (title.includes('总结') || title.includes('结论')) {
-      pageType = '总结要点';
-    } else if (title.includes('介绍') || title.includes('概述')) {
-      pageType = '概念介绍';
-    }
-    
-    // Generate visual concepts based on content type
-    let visualConcept = '';
-    let layoutStructure = '';
-    let colorScheme = '';
-    
-    if (pageType === '核心要点对比') {
-      layoutStructure = '左右对比结构';
-      visualConcept = '对比卡片设计';
-      colorScheme = 'bg-blue-100 vs bg-green-100';
-    } else if (pageType === '流程指南') {
-      layoutStructure = '垂直流程结构';
-      visualConcept = '步骤卡片 + 连接线';
-      colorScheme = 'bg-gradient-to-r from-blue-50 to-indigo-100';
-    } else if (pageType === '总结要点') {
-      layoutStructure = '网格布局';
-      visualConcept = '要点图标 + 简洁文字';
-      colorScheme = 'bg-gray-50 with accent colors';
-    } else {
-      layoutStructure = '标准内容布局';
-      visualConcept = '图文混排';
-      colorScheme = 'bg-white with subtle shadows';
-    }
-    
-    // Select appropriate icon
-    let icon = '📄';
-    if (pageType === '核心要点对比') icon = '⚖️';
-    else if (pageType === '流程指南') icon = '🔄';
-    else if (pageType === '总结要点') icon = '✅';
-    else if (pageType === '概念介绍') icon = '💡';
-    
-    const blueprint = `信息图：${index + 1}/${totalPages}
+  if (headers.length > 0) {
+    headers.forEach((header, index) => {
+      const level = (header.match(/^#+/) || [''])[0].length;
+      const title = header.replace(/^#+\s*/, '');
+      
+      // Get content under this header
+      const headerIndex = lines.indexOf(header);
+      const nextHeaderIndex = lines.findIndex((line, i) => i > headerIndex && line.match(/^#{1,6}\s/));
+      const sectionContent = lines.slice(headerIndex + 1, nextHeaderIndex === -1 ? lines.length : nextHeaderIndex).join('\n');
+      
+      // Intelligent page type detection
+      let pageType = '信息展示';
+      let layoutStructure = '标准内容布局';
+      let visualConcept = '清晰信息展示';
+      let colorScheme = 'bg-white with clean typography';
+      let icon = '📄';
+      let contentHighlights: string[] = [];
+      
+      // Analyze section content
+      const sectionLower = sectionContent.toLowerCase();
+      const sectionHasLists = sectionContent.includes('-') || sectionContent.includes('*') || /\d+\./.test(sectionContent);
+      const sectionHasLinks = /\[.*?\]\(.*?\)/.test(sectionContent);
+      const sectionHasNumbers = /\d+%|\d+\.\d+/.test(sectionContent);
+      
+      if (hasComparison && (title.includes('vs') || sectionLower.includes('compar') || sectionLower.includes('differ'))) {
+        pageType = '核心要点对比';
+        layoutStructure = '左右对比结构';
+        visualConcept = '对比卡片 + 优劣势突出';
+        colorScheme = 'bg-blue-50 vs bg-green-50';
+        icon = '⚖️';
+        contentHighlights = ['对比要点可视化', '差异性突出展示', '决策引导设计'];
+      } else if (hasProcess && (sectionHasLists || title.toLowerCase().includes('step') || title.toLowerCase().includes('how'))) {
+        pageType = '流程指南';
+        layoutStructure = '垂直流程布局';
+        visualConcept = '步骤卡片 + 进度指示';
+        colorScheme = 'bg-gradient-to-b from-blue-50 to-indigo-100';
+        icon = '🔄';
+        contentHighlights = ['步骤可视化', '进度追踪', '操作指引清晰'];
+      } else if (hasDataNumbers && sectionHasNumbers) {
+        pageType = '数据可视化';
+        layoutStructure = '图表展示布局';
+        visualConcept = '数据图表 + 关键指标';
+        colorScheme = 'bg-gray-50 with data accents';
+        icon = '📊';
+        contentHighlights = ['数据图表化', '关键指标突出', '趋势可视化'];
+      } else if (hasTechnical && (codeBlocks.length > 0 || title.toLowerCase().includes('code') || title.toLowerCase().includes('api'))) {
+        pageType = '技术文档';
+        layoutStructure = '代码示例布局';
+        visualConcept = '代码块 + 技术说明';
+        colorScheme = 'bg-gray-900 with syntax highlighting';
+        icon = '💻';
+        contentHighlights = ['代码语法高亮', '技术要点突出', '实例演示'];
+      } else if (hasTimeline && (title.toLowerCase().includes('history') || sectionLower.includes('time'))) {
+        pageType = '时间线展示';
+        layoutStructure = '时间轴布局';
+        visualConcept = '时间线 + 事件节点';
+        colorScheme = 'bg-gradient-to-r from-purple-50 to-pink-50';
+        icon = '📅';
+        contentHighlights = ['时间轴可视化', '事件节点突出', '历史脉络清晰'];
+      } else if (sectionHasLists && listItems.length > 3) {
+        pageType = '要点总结';
+        layoutStructure = '网格卡片布局';
+        visualConcept = '要点卡片 + 图标设计';
+        colorScheme = 'bg-yellow-50 with accent colors';
+        icon = '✅';
+        contentHighlights = ['要点卡片化', '图标化展示', '层次化信息'];
+      } else if (level === 1) {
+        pageType = '概念介绍';
+        layoutStructure = '图文并茂布局';
+        visualConcept = '概念图解 + 详细说明';
+        colorScheme = 'bg-blue-50 with concept highlights';
+        icon = '💡';
+        contentHighlights = ['概念可视化', '图解说明', '知识结构化'];
+      }
+      
+      // Extract key content elements
+      const keyPoints = sectionContent.split('\n').filter(line => 
+        line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line)
+      ).slice(0, 3).map(point => point.replace(/^[-*\d.]\s*/, ''));
+      
+      if (keyPoints.length > 0) {
+        contentHighlights = [...contentHighlights, ...keyPoints.map(point => point.slice(0, 30) + '...')];
+      }
+      
+      const blueprint = `信息图：${index + 1}/${headers.length}
 - 页面类型：${pageType}
 - 页面标题：${title}
 - 核心内容与视觉构思：
@@ -82,25 +127,63 @@ const generateBlueprint = (content: string): string => {
     - 标题：${title} + 图标 ${icon}
     - 视觉概念：${visualConcept}
   内容重点：
-    - 核心信息提取与层次化展示
-    - 视觉引导与用户体验优化`;
+${contentHighlights.slice(0, 4).map(highlight => `    - ${highlight}`).join('\n')}
+  交互设计：
+    - 响应式布局适配
+    - 渐进式内容加载
+    - 用户友好的导航体验`;
+      
+      blueprintPages.push(blueprint);
+    });
+  } else {
+    // Analyze content without headers
+    let pageType = '综合内容展示';
+    let icon = '📋';
+    let layoutStructure = '标准文档布局';
+    let visualConcept = '信息整理展示';
+    let colorScheme = 'bg-white with clean typography';
     
-    blueprintPages.push(blueprint);
-  });
-  
-  // If no headers found, create a general blueprint
-  if (blueprintPages.length === 0) {
+    if (hasComparison) {
+      pageType = '对比分析';
+      icon = '⚖️';
+      layoutStructure = '对比分析布局';
+      visualConcept = '对比表格 + 关键差异';
+      colorScheme = 'bg-blue-50 with comparison highlights';
+    } else if (hasDataNumbers) {
+      pageType = '数据报告';
+      icon = '📊';
+      layoutStructure = '数据展示布局';
+      visualConcept = '数据可视化 + 分析洞察';
+      colorScheme = 'bg-gray-50 with data visualization';
+    } else if (listItems.length > 5) {
+      pageType = '清单总结';
+      icon = '📝';
+      layoutStructure = '列表展示布局';
+      visualConcept = '清单化展示 + 优先级';
+      colorScheme = 'bg-green-50 with checklist design';
+    }
+    
+    const keyContentElements = [
+      `总计 ${listItems.length} 个要点`,
+      `包含 ${links.length} 个外部链接`,
+      codeBlocks.length > 0 ? `${codeBlocks.length} 个代码示例` : '纯文本内容',
+      hasDataNumbers ? '包含数据统计' : '定性分析内容'
+    ];
+    
     blueprintPages.push(`信息图：1/1
-- 页面类型：综合内容展示
-- 页面标题：AI 生成内容
+- 页面类型：${pageType}
+- 页面标题：AI 响应分析
 - 核心内容与视觉构思：
-  布局：标准文档布局
+  布局：${layoutStructure}
   主要元素：
-    - 构思：bg-white with clean typography
-    - 标题：内容概览 + 图标 📋
-    - 视觉概念：简洁文档设计
-  内容重点：
-    - 信息清晰呈现
+    - 构思：${colorScheme}
+    - 标题：AI 响应分析 + 图标 ${icon}
+    - 视觉概念：${visualConcept}
+  内容特征：
+${keyContentElements.map(element => `    - ${element}`).join('\n')}
+  设计重点：
+    - 信息层次化展示
+    - 关键内容突出
     - 易读性优化`);
   }
   
@@ -112,10 +195,11 @@ ${blueprintPages.join('\n\n')}
 
 ---
 💡 设计说明：
-- 采用渐进式信息展示
-- 注重视觉层次与用户体验
-- 配色方案支持品牌一致性
-- 响应式设计适配多设备`;
+- 基于内容结构智能分析
+- 采用适配性视觉设计方案  
+- 注重信息层次与用户体验
+- 响应式设计适配多设备
+- 内容驱动的交互设计`;
 };
 
 // Markdown component props type from former ReportView
