@@ -310,16 +310,178 @@ ${blueprint}`;
   }
 };
 
-// Updated HTML generation function - now uses Gemini API
+// API call to generate HTML using OpenAI
+const callOpenAIForHTML = async (blueprint: string): Promise<string> => {
+  console.log('=== callOpenAIForHTML called ===');
+  console.log('Blueprint length:', blueprint.length);
+  
+  const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+  
+  if (!OPENAI_API_KEY) {
+    console.error('VITE_OPENAI_API_KEY is not set');
+    throw new Error('VITE_OPENAI_API_KEY is not set in environment variables');
+  }
+
+  const prompt = `As a professional frontend developer, generate complete HTML+CSS+JavaScript code based on the following design blueprint.
+
+Requirements:
+1. Fixed canvas size: 448px × 597px
+2. Generate ALL pages specified in the blueprint (usually 6-10 pages)
+3. Multi-page navigation: left/right arrow keys + button navigation
+4. Page indicator showing current page/total pages
+5. No external images - use CSS gradients and Emoji icons
+6. Modern CSS: Flexbox, Grid, gradients
+7. Font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+
+Code requirements:
+- Compact and concise code structure, minimal comments
+- All pages must be included in a single HTML document
+- Use simplified CSS class names and structure
+- Ensure all pages are properly implemented
+
+Generate a complete runnable HTML document including all pages:
+
+Design Blueprint:
+${blueprint}`;
+
+  console.log('Sending request to OpenAI API...');
+  console.log('Prompt length:', prompt.length);
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert frontend developer and UI designer. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints. Always provide complete, runnable code with all specified pages.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 16384, // Higher than Gemini's limit
+      }),
+    });
+
+    console.log('API response status:', response.status);
+    console.log('API response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error?.message || 'Unknown error';
+      console.error('API error response:', errorData);
+      throw new Error(`OpenAI API request failed: ${response.status} - ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    console.log('API response data keys:', Object.keys(data));
+    
+    if (data.choices && data.choices.length > 0) {
+      console.log('Choices found:', data.choices.length);
+      console.log('First choice:', data.choices[0]);
+      
+      const choice = data.choices[0];
+      if (choice.message && choice.message.content) {
+        let htmlContent = choice.message.content;
+        console.log('Raw API response length:', htmlContent.length);
+        console.log('Raw API response preview:', htmlContent.substring(0, 500));
+        
+        // Check if response appears to be truncated
+        const lastLine = htmlContent.trim().split('\n').pop();
+        const isTruncated = !htmlContent.includes('</html>') || 
+                          lastLine?.length < 10 || 
+                          htmlContent.endsWith('{') || 
+                          htmlContent.endsWith(':') ||
+                          htmlContent.endsWith(';') ||
+                          htmlContent.endsWith(',');
+        
+        console.log('Response appears truncated:', isTruncated);
+        console.log('Last 200 characters:', htmlContent.slice(-200));
+        
+        // Extract HTML from markdown code blocks if present
+        const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          htmlContent = codeBlockMatch[1];
+          console.log('Extracted HTML from code block, length:', htmlContent.length);
+        }
+        
+        // Additional extraction patterns for different formats
+        if (!htmlContent.includes('<!DOCTYPE html>')) {
+          const htmlStartPatterns = [
+            /```html\s*\n([\s\S]*)/,
+            /```\s*\n(<!DOCTYPE html[\s\S]*)/,
+            /(<!DOCTYPE html[\s\S]*)/
+          ];
+          
+          for (const pattern of htmlStartPatterns) {
+            const match = htmlContent.match(pattern);
+            if (match) {
+              htmlContent = match[1];
+              console.log('Extracted HTML using pattern, length:', htmlContent.length);
+              break;
+            }
+          }
+        }
+        
+        // Ensure we have a complete HTML document
+        if (!htmlContent.includes('<!DOCTYPE html>')) {
+          console.warn('HTML content does not appear to be a complete document');
+          console.log('Content starts with:', htmlContent.substring(0, 200));
+        }
+        
+        // Handle truncated responses
+        if (isTruncated) {
+          console.warn('⚠️  API response appears to be truncated. This may result in incomplete HTML.');
+          alert('Warning: The generated HTML appears to be incomplete due to response length limits. The visualization may not display all pages correctly.');
+        }
+        
+        // Validate the HTML contains multi-page structure
+        const pageCount = (htmlContent.match(/id="page-?\d+"/g) || []).length;
+        console.log('Generated HTML page count:', pageCount);
+        
+        if (pageCount === 0) {
+          console.warn('Generated HTML appears to have no pages, this might be incorrect');
+          const altPageCount = (htmlContent.match(/class="page"/g) || []).length;
+          console.log('Alternative page count detection:', altPageCount);
+        }
+        
+        console.log('Final HTML length:', htmlContent.length);
+        console.log('HTML validation - DOCTYPE:', htmlContent.includes('<!DOCTYPE html>'));
+        console.log('HTML validation - closing tag:', htmlContent.includes('</html>'));
+        
+        return htmlContent;
+      } else {
+        console.error('No content found in choice:', choice);
+        throw new Error('No content found in API response');
+      }
+    } else {
+      console.error('No choices found in API response:', data);
+      throw new Error('No choices found in API response');
+    }
+  } catch (error) {
+    console.error('Error calling OpenAI API for HTML:', error);
+    throw error;
+  }
+};
+
+// Updated HTML generation function - now uses OpenAI API
 const generateHTML = async (blueprint: string): Promise<string> => {
   console.log('=== DEBUG: generateHTML called ===');
   console.log('Blueprint length:', blueprint.length);
   console.log('Blueprint preview:', blueprint.substring(0, 200) + '...');
   
   try {
-    console.log('Calling Gemini API for HTML generation...');
-    const generatedHTML = await callGeminiAPIForHTML(blueprint);
-    console.log('Successfully generated HTML from API, length:', generatedHTML.length);
+    console.log('Calling OpenAI API for HTML generation...');
+    const generatedHTML = await callOpenAIForHTML(blueprint);
+    console.log('Successfully generated HTML from OpenAI API, length:', generatedHTML.length);
     
     // Additional validation
     if (generatedHTML.length < 1000) {
@@ -332,7 +494,7 @@ const generateHTML = async (blueprint: string): Promise<string> => {
     
     return generatedHTML;
   } catch (error) {
-    console.error('Error generating HTML via API:', error);
+    console.error('Error generating HTML via OpenAI API:', error);
     console.log('Falling back to generateFallbackHTML');
     
     // Extract some content from blueprint for fallback
