@@ -227,59 +227,185 @@ const generateHTML = (content: string): string => {
   const blueprint = generateBlueprint(content);
   const lines = blueprint.split('\n');
   
-  // Parse blueprint to extract page information
-  const pages = [];
-  let currentPage = null;
+  // Parse blueprint to extract all page information
+  const pages: any[] = [];
+  let currentPage: any = null;
   
   for (const line of lines) {
     if (line.startsWith('信息图')) {
       if (currentPage) pages.push(currentPage);
+      const pageInfo = line.match(/信息图 (\d+) \/ (\d+)/);
       currentPage = { 
+        pageNum: pageInfo?.[1] || '1',
+        totalPages: pageInfo?.[2] || '1',
         title: '', 
         type: '', 
-        content: [], 
-        layout: '', 
-        background: '',
-        pageNum: line.match(/\d+/)?.[0] || '1'
+        content: [],
+        rawContent: []
       };
     } else if (line.startsWith('页面类型：')) {
       if (currentPage) currentPage.type = line.replace('页面类型：', '').trim();
     } else if (line.startsWith('页面标题：')) {
-      if (currentPage) currentPage.title = line.replace('页面标题：', '').trim();
-    } else if (line.includes('布局：')) {
-      if (currentPage) currentPage.layout = line.replace(/.*布局：/, '').trim();
-    } else if (line.includes('背景：')) {
-      if (currentPage) currentPage.background = line.replace(/.*背景：/, '').trim();
+      if (currentPage) currentPage.title = line.replace('页面标题：', '').trim().replace(/《|》/g, '');
     } else if (line.trim() && currentPage) {
-      currentPage.content.push(line.trim());
+      currentPage.rawContent.push(line.trim());
     }
   }
   if (currentPage) pages.push(currentPage);
   
-  // Generate HTML for first page (Hero or main content)
-  const firstPage = pages[0];
-  if (!firstPage) return generateFallbackHTML(content);
+  // Extract actual content for data
+  const originalLines = content.split('\n').filter(line => line.trim());
+  const listItems = originalLines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
+    .slice(0, 12).map(item => item.replace(/^[-*\d.]\s*/, ''));
+  const numbers = content.match(/\d+[%]?/g) || ['85', '92', '78', '94'];
+  const firstSentence = content.split('.')[0] || pages[0]?.title || 'AI 分析内容';
   
-  return generatePageHTML(firstPage, content);
+  return generateMultiPageHTML(pages, { listItems, numbers, firstSentence, originalContent: content });
 };
 
-const generatePageHTML = (page: any, originalContent: string): string => {
-  const { type, title, content, background, pageNum } = page;
+const generateMultiPageHTML = (pages: any[], data: any): string => {
+  const { listItems, numbers, firstSentence } = data;
+  const totalPages = pages.length;
   
-  // Extract key content from original response
-  const lines = originalContent.split('\n').filter(line => line.trim());
-  const listItems = lines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
-    .slice(0, 6).map(item => item.replace(/^[-*\d.]\s*/, ''));
-  const numbers = originalContent.match(/\d+[%]?/g) || [];
-  const firstSentence = originalContent.split('.')[0] || title;
+  const generatePageContent = (page: any, index: number) => {
+    const { type, title, pageNum } = page;
+    
+    if (type.includes('封面') || type.includes('Hero')) {
+      return `
+        <div class="page hero-page" id="page-${index}">
+          <div class="hero-pattern"></div>
+          <div class="hero-content">
+            <div class="hero-icons">🔍📊</div>
+            <h1 class="hero-title">${title}</h1>
+            <p class="hero-subtitle">${firstSentence.slice(0, 80)}</p>
+          </div>
+          <div class="page-indicator">${pageNum} / ${totalPages}</div>
+        </div>`;
+    }
+    
+    if (type.includes('概览') || type.includes('Executive Summary')) {
+      const summaryPoints = listItems.slice(0, 3);
+      return `
+        <div class="page overview-page" id="page-${index}">
+          <div class="page-header">
+            <h1>${title}</h1>
+          </div>
+          <div class="overview-layout">
+            <div class="overview-left">
+              <h2>核心要点</h2>
+                             ${summaryPoints.map((point: string) => '<div class="summary-point">' + point.slice(0, 40) + '</div>').join('')}
+            </div>
+            <div class="overview-right">
+              <div class="concept-diagram">
+                <div class="center-node">AI</div>
+                <div class="orbit-node orbit-1">效率</div>
+                <div class="orbit-node orbit-2">速度</div>
+                <div class="orbit-node orbit-3">智能</div>
+              </div>
+            </div>
+          </div>
+          <div class="page-indicator">${pageNum} / ${totalPages}</div>
+        </div>`;
+    }
+    
+    if (type.includes('对比') || type.includes('comparison')) {
+      return `
+        <div class="page comparison-page" id="page-${index}">
+          <div class="page-header">
+            <h1>${title}</h1>
+          </div>
+          <div class="comparison-layout">
+            <div class="comparison-card card-traditional">
+              <div class="card-header">传统路线 🔄</div>
+              <div class="comparison-table">
+                <div class="table-row">
+                  <div class="dimension">周期</div>
+                  <div class="value">月级迭代</div>
+                  <div class="icon">⏳</div>
+                </div>
+                <div class="table-row">
+                  <div class="dimension">决策</div>
+                  <div class="value">经验驱动</div>
+                  <div class="icon">💭</div>
+                </div>
+                <div class="table-row">
+                  <div class="dimension">质检</div>
+                  <div class="value">靠抽检</div>
+                  <div class="icon">🔍</div>
+                </div>
+              </div>
+            </div>
+            <div class="comparison-card card-ai">
+              <div class="card-header">AI 路线 🤖</div>
+              <div class="comparison-table">
+                <div class="table-row">
+                  <div class="dimension">周期</div>
+                  <div class="value">周级 & 持续部署</div>
+                  <div class="icon">⚡</div>
+                </div>
+                <div class="table-row">
+                  <div class="dimension">决策</div>
+                  <div class="value">数据洞察</div>
+                  <div class="icon">📊</div>
+                </div>
+                <div class="table-row">
+                  <div class="dimension">质检</div>
+                  <div class="value">预测性 QA</div>
+                  <div class="icon">🔮</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="page-indicator">${pageNum} / ${totalPages}</div>
+        </div>`;
+    }
+    
+    if (type.includes('数据') || type.includes('data')) {
+      return `
+        <div class="page data-page" id="page-${index}">
+          <div class="page-header">
+            <h1>${title}</h1>
+          </div>
+          <div class="data-grid">
+                         ${numbers.slice(0, 4).map((num: any, i: number) => {
+              const progress = Math.min(parseInt(num) || 75, 100);
+              return '<div class="data-card">' +
+                '<div class="data-icon">📊</div>' +
+                '<div class="data-value">' + num + '</div>' +
+                '<div class="data-label">' + (listItems[i]?.slice(0, 20) || '关键指标 ' + (i + 1)) + '</div>' +
+                '<div class="progress-bar"><div class="progress-fill" style="width: ' + progress + '%"></div></div>' +
+              '</div>';
+            }).join('')}
+          </div>
+          <div class="page-indicator">${pageNum} / ${totalPages}</div>
+        </div>`;
+    }
+    
+    // Default content page
+    const pagePoints = listItems.slice(index * 4, (index + 1) * 4);
+    return `
+      <div class="page content-page" id="page-${index}">
+        <div class="page-header">
+          <h1>${title}</h1>
+        </div>
+        <div class="content-grid">
+                     ${pagePoints.map((point: string, i: number) =>  
+            '<div class="content-item' + (i % 2 === 0 ? ' highlight' : '') + '">' +
+              '<div class="content-bullet">•</div>' +
+              '<div class="content-text">' + point.slice(0, 60) + '</div>' +
+            '</div>'
+          ).join('')}
+        </div>
+        <div class="page-indicator">${pageNum} / ${totalPages}</div>
+      </div>`;
+  };
   
-  if (type.includes('封面') || type.includes('Hero')) {
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>设计蓝图实现</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -287,22 +413,56 @@ const generatePageHTML = (page: any, originalContent: string): string => {
             height: 597px; 
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #a855f7 100%);
+            background: #000;
             position: relative;
         }
-        .hero-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+        
+        .page {
+            width: 448px;
+            height: 597px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+            overflow: hidden;
+        }
+        
+        .page.active { display: block; }
+        
+        .page-indicator {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .page-header {
             text-align: center;
-            padding: 40px;
+            padding: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+            color: #1e293b;
+            line-height: 1.3;
+        }
+        
+        /* Hero Page Styles */
+        .hero-page {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #a855f7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
         }
-        .hero-container::before {
-            content: '';
+        
+        .hero-pattern {
             position: absolute;
             top: 0;
             left: 0;
@@ -310,262 +470,364 @@ const generatePageHTML = (page: any, originalContent: string): string => {
             bottom: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20m20 0c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
             animation: pulse 4s ease-in-out infinite;
-            opacity: 0.15;
         }
-        .icons {
+        
+        .hero-content {
+            text-align: center;
+            z-index: 1;
+            padding: 40px;
+        }
+        
+        .hero-icons {
             font-size: 3rem;
             margin-bottom: 20px;
             animation: fadeInUp 1s ease-out;
         }
-        .main-title {
-            font-size: 2.5rem;
+        
+        .hero-title {
+            font-size: 2.2rem;
             font-weight: 900;
             color: white;
             margin-bottom: 16px;
             line-height: 1.2;
             animation: fadeInUp 1s ease-out 0.2s both;
         }
-        .subtitle {
-            font-size: 1.2rem;
+        
+        .hero-subtitle {
+            font-size: 1rem;
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
-            max-width: 320px;
             animation: fadeInUp 1s ease-out 0.4s both;
         }
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 0.15; }
-            50% { opacity: 0.25; }
-        }
-    </style>
-</head>
-<body>
-    <div class="hero-container">
-        <div class="icons">🔍📊</div>
-        <h1 class="main-title">${title.replace(/《|》/g, '')}</h1>
-        <p class="subtitle">${firstSentence.slice(0, 60)}...</p>
-    </div>
-</body>
-</html>`;
-  }
-  
-  if (type.includes('对比') || type.includes('comparison')) {
-    return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            width: 448px; 
-            height: 597px; 
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        
+        /* Overview Page Styles */
+        .overview-page {
             background: #f8fafc;
+        }
+        
+        .overview-layout {
+            display: flex;
+            height: calc(100% - 120px);
             padding: 20px;
         }
-        .container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
+        
+        .overview-left {
+            flex: 1;
+            padding-right: 20px;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            font-size: 1.8rem;
+        
+        .overview-left h2 {
+            font-size: 1.2rem;
             color: #1e293b;
-            margin-bottom: 8px;
+            margin-bottom: 16px;
         }
-        .comparison-container {
+        
+        .summary-point {
+            background: white;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .overview-right {
             flex: 1;
             display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .concept-diagram {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        
+        .center-node {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .orbit-node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #60a5fa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .orbit-1 { top: 10px; left: 50%; transform: translateX(-50%); }
+        .orbit-2 { bottom: 10px; left: 20px; }
+        .orbit-3 { bottom: 10px; right: 20px; }
+        
+        /* Comparison Page Styles */
+        .comparison-page {
+            background: #f8fafc;
+        }
+        
+        .comparison-layout {
+            display: flex;
             flex-direction: column;
+            height: calc(100% - 120px);
+            padding: 20px;
             gap: 16px;
         }
+        
         .comparison-card {
             flex: 1;
             border-radius: 12px;
-            padding: 24px;
+            padding: 20px;
             position: relative;
-            overflow: hidden;
         }
-        .card-a {
+        
+        .card-traditional {
             background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
             border: 2px solid #3b82f6;
         }
-        .card-b {
+        
+        .card-ai {
             background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
             border: 2px solid #22c55e;
         }
-        .card-title {
-            font-size: 1.4rem;
+        
+        .card-header {
+            font-size: 1.2rem;
             font-weight: 700;
             margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            text-align: center;
         }
-        .card-a .card-title { color: #1d4ed8; }
-        .card-b .card-title { color: #15803d; }
-        .feature-list {
-            list-style: none;
-        }
-        .feature-list li {
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            font-size: 0.9rem;
-        }
-        .feature-list li:last-child {
-            border-bottom: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>${title}</h1>
-        </div>
-        <div class="comparison-container">
-                         <div class="comparison-card card-a">
-                 <div class="card-title">传统方案 🔄</div>
-                 <ul class="feature-list">
-                     ${listItems.slice(0, 3).map(item => '<li>' + item.slice(0, 50) + '</li>').join('')}
-                 </ul>
-             </div>
-             <div class="comparison-card card-b">
-                 <div class="card-title">优化方案 🤖</div>
-                 <ul class="feature-list">
-                     ${listItems.slice(3, 6).map(item => '<li>' + item.slice(0, 50) + '</li>').join('')}
-                 </ul>
-             </div>
-        </div>
-    </div>
-</body>
-</html>`;
-  }
-  
-  if (type.includes('数据') || type.includes('data')) {
-    return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            width: 448px; 
-            height: 597px; 
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f8fafc;
-            padding: 20px;
-        }
-        .container {
-            width: 100%;
-            height: 100%;
+        
+        .card-traditional .card-header { color: #1d4ed8; }
+        .card-ai .card-header { color: #15803d; }
+        
+        .comparison-table {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 30px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 6px;
+            font-size: 0.85rem;
         }
-        .header h1 {
-            font-size: 1.8rem;
-            color: #1e293b;
-            margin-bottom: 8px;
+        
+        .dimension { font-weight: 600; }
+        .value { color: #374151; }
+        .icon { text-align: center; }
+        
+        /* Data Page Styles */
+        .data-page {
+            background: #f8fafc;
         }
-        .stats-grid {
+        
+        .data-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
-            flex: 1;
+            padding: 20px;
+            height: calc(100% - 120px);
         }
-        .stat-card {
+        
+        .data-card {
             background: white;
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px;
             border-left: 4px solid #3b82f6;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 900;
-            color: #3b82f6;
+        
+        .data-icon {
+            font-size: 1.5rem;
             margin-bottom: 8px;
         }
-        .stat-label {
-            font-size: 0.9rem;
+        
+        .data-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        
+        .data-label {
+            font-size: 0.8rem;
             color: #64748b;
-            font-weight: 500;
+            margin-bottom: 8px;
         }
-        .stat-icon {
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-        }
+        
         .progress-bar {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background: #e2e8f0;
-            border-radius: 4px;
-            margin-top: 8px;
+            border-radius: 3px;
             overflow: hidden;
         }
+        
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-            border-radius: 4px;
-            animation: fillProgress 2s ease-out;
+            border-radius: 3px;
+            transition: width 2s ease-out;
         }
-        @keyframes fillProgress {
-            from { width: 0%; }
-            to { width: var(--progress); }
+        
+        /* Content Page Styles */
+        .content-page {
+            background: white;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 20px;
+            height: calc(100% - 120px);
+        }
+        
+        .content-item {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid #6366f1;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .content-item.highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left-color: #f59e0b;
+        }
+        
+        .content-bullet {
+            color: #6366f1;
+            font-weight: bold;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+        
+        .content-text {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #374151;
+        }
+        
+        /* Navigation */
+        .nav-controls {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .nav-btn {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-btn:hover {
+            background: rgba(0,0,0,0.9);
+            transform: scale(1.05);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.1; }
+            50% { opacity: 0.2; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>${title}</h1>
-        </div>
-                 <div class="stats-grid">
-             ${numbers.slice(0, 4).map((num, i) => {
-               const progressValue = Math.min(parseInt(num) || 75, 100);
-               return '<div class="stat-card">' +
-                 '<div class="stat-icon">📊</div>' +
-                 '<div class="stat-value">' + num + '</div>' +
-                 '<div class="stat-label">' + (listItems[i]?.slice(0, 20) || '关键指标') + '</div>' +
-                 '<div class="progress-bar">' +
-                   '<div class="progress-fill" style="--progress: ' + progressValue + '%"></div>' +
-                 '</div>' +
-               '</div>';
-             }).join('')}
-         </div>
+    ${pages.map((page, index) => generatePageContent(page, index)).join('')}
+    
+    <div class="nav-controls">
+        <button class="nav-btn" onclick="prevPage()" id="prevBtn">← 上一页</button>
+        <button class="nav-btn" onclick="nextPage()" id="nextBtn">下一页 →</button>
     </div>
+    
+    <script>
+        let currentPage = 0;
+        const totalPages = ${totalPages};
+        
+        function showPage(index) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById('page-' + index).classList.add('active');
+            
+            document.getElementById('prevBtn').disabled = index === 0;
+            document.getElementById('nextBtn').disabled = index === totalPages - 1;
+        }
+        
+        function nextPage() {
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                showPage(currentPage);
+            }
+        }
+        
+        function prevPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                showPage(currentPage);
+            }
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+        
+        // Initialize
+        showPage(0);
+    </script>
 </body>
 </html>`;
-  }
-  
-  // Default content layout
-  return generateFallbackHTML(originalContent);
 };
 
 const generateFallbackHTML = (content: string): string => {
