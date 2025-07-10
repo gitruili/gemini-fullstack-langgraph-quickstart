@@ -17,189 +17,209 @@ import {
 const generateBlueprint = (content: string): string => {
   const lines = content.split('\n').filter(line => line.trim());
   
-  // Analyze content structure more thoroughly
+  // Extract main topic from first few lines
+  const firstParagraph = lines.slice(0, 5).join(' ');
+  const mainTopic = firstParagraph.length > 100 ? firstParagraph.slice(0, 100) + '...' : firstParagraph;
+  
+  // Analyze content structure
   const headers = lines.filter(line => line.match(/^#{1,6}\s/));
   const listItems = lines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/));
-  const links = content.match(/\[([^\]]+)\]\([^)]+\)/g) || [];
-  const codeBlocks = content.match(/```[\s\S]*?```/g) || [];
+  const strongText = content.match(/\*\*(.*?)\*\*/g) || [];
+  const numbers = content.match(/\d+[%]?/g) || [];
   
-  // Detect content themes and patterns
+  // Content analysis patterns
   const contentLower = content.toLowerCase();
-  const hasComparison = /vs|versus|compared?|differ|advantage|disadvantage|better|worse|pros?|cons?/.test(contentLower);
-  const hasProcess = /step|process|procedure|method|how to|guide|tutorial|first|second|third|then|next|finally/.test(contentLower);
-  const hasDataNumbers = /\d+%|\d+\.\d+|statistics?|data|research|study|survey|result/.test(contentLower);
-  const hasTechnical = /code|api|function|algorithm|implementation|technical|programming/.test(contentLower);
-  const hasTimeline = /\d{4}|\b(january|february|march|april|may|june|july|august|september|october|november|december)|timeline|history|evolution/.test(contentLower);
+  const hasComparison = /vs|versus|compared?|differ|advantage|disadvantage|better|worse|before.*after|traditional.*modern/.test(contentLower);
+  const hasNumbers = numbers.length > 3;
+  const hasSteps = /step|process|method|how to|guide|first|second|third|then|next|finally/.test(contentLower);
   
   let blueprintPages: string[] = [];
+  const totalPages = Math.max(headers.length + 1, 3); // +1 for hero page
   
+  // Generate Hero Page
+  const heroTitle = headers.length > 0 ? 
+    headers[0].replace(/^#+\s*/, '') : 
+    content.split('.')[0] || "AI 响应内容";
+  
+  const heroSubtitle = mainTopic.length > 50 ? 
+    mainTopic.slice(0, 50).split(' ').slice(0, -1).join(' ') + '...' : 
+    mainTopic;
+  
+  blueprintPages.push(`信息图 1 / ${totalPages}
+页面类型：封面（Hero）
+页面标题：《${heroTitle}》
+核心内容与视觉构思
+
+布局：全屏 Hero；中央居中栅格，宽 8 col。
+
+背景：bg-gradient-to-br from-blue-600 via-indigo-500 to-purple-400，叠加 15% 透明度的数据纹理。
+
+文案：
+  主标题：${heroTitle}
+  副标题："${heroSubtitle}"
+  Icon 组：🔍 + 📊（居标题上方，用 text-5xl）
+
+动效：标题用 animate-fade-in-up，背景纹理低速 animate-pulse。`);
+
+  // Generate Overview Page
+  const keyStats = numbers.slice(0, 3);
+  const keyPoints = listItems.slice(0, 3).map(item => 
+    item.replace(/^[-*\d.]\s*/, '').slice(0, 40)
+  );
+  
+  blueprintPages.push(`信息图 2 / ${totalPages}
+页面类型：概览（Executive Summary）
+页面标题：核心要点总览
+核心内容与视觉构思
+
+布局：左右对分（6 col / 6 col）。左侧文字，右侧可视化图表。
+
+左侧三行摘要（大字＋粗体）：
+${keyPoints.length > 0 ? keyPoints.map(point => `  ${point}`).join('\n') : `  关键洞察与分析
+  数据驱动的结论
+  实用性建议指南`}
+
+右侧视觉：${hasNumbers ? '数据仪表盘（' + keyStats.join('、') + '等关键指标）' : '概念图谱（中心主题辐射式展开）'}。
+
+色彩：bg-slate-50，主色 text-indigo-600；图表使用 stroke-blue-400/60。`);
+
+  // Generate content pages based on headers
   if (headers.length > 0) {
     headers.forEach((header, index) => {
-      const level = (header.match(/^#+/) || [''])[0].length;
-      const title = header.replace(/^#+\s*/, '');
+      const pageNum = index + 3; // +2 for hero and overview
+      if (pageNum > totalPages) return;
       
-      // Get content under this header
+      const title = header.replace(/^#+\s*/, '');
       const headerIndex = lines.indexOf(header);
       const nextHeaderIndex = lines.findIndex((line, i) => i > headerIndex && line.match(/^#{1,6}\s/));
       const sectionContent = lines.slice(headerIndex + 1, nextHeaderIndex === -1 ? lines.length : nextHeaderIndex).join('\n');
       
-      // Intelligent page type detection
-      let pageType = '信息展示';
-      let layoutStructure = '标准内容布局';
-      let visualConcept = '清晰信息展示';
-      let colorScheme = 'bg-white with clean typography';
-      let icon = '📄';
-      let contentHighlights: string[] = [];
+      // Extract actual content
+      const sectionPoints = sectionContent.split('\n')
+        .filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
+        .slice(0, 4)
+        .map(point => point.replace(/^[-*\d.]\s*/, '').slice(0, 50));
       
-      // Analyze section content
+      const sectionNumbers = sectionContent.match(/\d+[%]?/g) || [];
       const sectionLower = sectionContent.toLowerCase();
-      const sectionHasLists = sectionContent.includes('-') || sectionContent.includes('*') || /\d+\./.test(sectionContent);
-      const sectionHasLinks = /\[.*?\]\(.*?\)/.test(sectionContent);
-      const sectionHasNumbers = /\d+%|\d+\.\d+/.test(sectionContent);
       
-      if (hasComparison && (title.includes('vs') || sectionLower.includes('compar') || sectionLower.includes('differ'))) {
+      // Determine page type and design
+      let pageType = '信息展示';
+      let layout = '标准栅格布局（8 col）';
+      let background = 'bg-white';
+      let visual = '要点列表';
+      
+      if (hasComparison && (title.toLowerCase().includes('vs') || sectionLower.includes('compar') || sectionLower.includes('对比'))) {
         pageType = '核心要点对比';
-        layoutStructure = '左右对比结构';
-        visualConcept = '对比卡片 + 优劣势突出';
-        colorScheme = 'bg-blue-50 vs bg-green-50';
-        icon = '⚖️';
-        contentHighlights = ['对比要点可视化', '差异性突出展示', '决策引导设计'];
-      } else if (hasProcess && (sectionHasLists || title.toLowerCase().includes('step') || title.toLowerCase().includes('how'))) {
-        pageType = '流程指南';
-        layoutStructure = '垂直流程布局';
-        visualConcept = '步骤卡片 + 进度指示';
-        colorScheme = 'bg-gradient-to-b from-blue-50 to-indigo-100';
-        icon = '🔄';
-        contentHighlights = ['步骤可视化', '进度追踪', '操作指引清晰'];
-      } else if (hasDataNumbers && sectionHasNumbers) {
-        pageType = '数据可视化';
-        layoutStructure = '图表展示布局';
-        visualConcept = '数据图表 + 关键指标';
-        colorScheme = 'bg-gray-50 with data accents';
-        icon = '📊';
-        contentHighlights = ['数据图表化', '关键指标突出', '趋势可视化'];
-      } else if (hasTechnical && (codeBlocks.length > 0 || title.toLowerCase().includes('code') || title.toLowerCase().includes('api'))) {
-        pageType = '技术文档';
-        layoutStructure = '代码示例布局';
-        visualConcept = '代码块 + 技术说明';
-        colorScheme = 'bg-gray-900 with syntax highlighting';
-        icon = '💻';
-        contentHighlights = ['代码语法高亮', '技术要点突出', '实例演示'];
-      } else if (hasTimeline && (title.toLowerCase().includes('history') || sectionLower.includes('time'))) {
-        pageType = '时间线展示';
-        layoutStructure = '时间轴布局';
-        visualConcept = '时间线 + 事件节点';
-        colorScheme = 'bg-gradient-to-r from-purple-50 to-pink-50';
-        icon = '📅';
-        contentHighlights = ['时间轴可视化', '事件节点突出', '历史脉络清晰'];
-      } else if (sectionHasLists && listItems.length > 3) {
-        pageType = '要点总结';
-        layoutStructure = '网格卡片布局';
-        visualConcept = '要点卡片 + 图标设计';
-        colorScheme = 'bg-yellow-50 with accent colors';
-        icon = '✅';
-        contentHighlights = ['要点卡片化', '图标化展示', '层次化信息'];
-      } else if (level === 1) {
-        pageType = '概念介绍';
-        layoutStructure = '图文并茂布局';
-        visualConcept = '概念图解 + 详细说明';
-        colorScheme = 'bg-blue-50 with concept highlights';
-        icon = '💡';
-        contentHighlights = ['概念可视化', '图解说明', '知识结构化'];
+        layout = '上下对比卡片布局';
+        background = 'bg-gray-50';
+        visual = `对比表格：
+维度	方案A	方案B
+${sectionPoints.length >= 2 ? sectionPoints.slice(0, 2).map((point, i) => `特点${i+1}	${point.split('').slice(0, 20).join('')}	优化方案`).join('\n') : '效率	传统方式	AI优化\n成本	高成本	成本降低'}`;
+        
+        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+页面类型：${pageType}
+页面标题：${title}
+核心内容与视觉构思
+
+布局：${layout}
+
+上半部分：bg-blue-100 标题：方案A 🔄
+下半部分：bg-green-100 标题：方案B 🤖
+
+${visual}
+
+色彩：对比色突出差异，用 text-blue-600 和 text-green-600。`);
+        
+      } else if (hasSteps && sectionPoints.length > 2) {
+        pageType = '流程步骤';
+        layout = '垂直时间线布局';
+        background = 'bg-gradient-to-b from-blue-50 to-indigo-100';
+        
+        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+页面类型：${pageType}
+页面标题：${title}
+核心内容与视觉构思
+
+布局：${layout}
+
+步骤卡片：
+${sectionPoints.slice(0, 4).map((point, i) => `  步骤 ${i+1}：${point}
+  图标：${['🎯', '⚡', '📈', '✅'][i]} + 连接线`).join('\n\n')}
+
+背景：${background}，步骤卡片用 bg-white shadow-sm。
+动效：步骤依次 animate-slide-in-right。`);
+        
+      } else if (hasNumbers && sectionNumbers.length > 2) {
+        pageType = '数据展示';
+        layout = '数据仪表盘布局（4x2 grid）';
+        background = 'bg-gray-50';
+        
+        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+页面类型：${pageType}
+页面标题：${title}
+核心内容与视觉构思
+
+布局：${layout}
+
+关键指标卡片：
+${sectionNumbers.slice(0, 4).map((num, i) => `  指标 ${i+1}：${num}
+  描述：${sectionPoints[i] || '相关数据指标'}
+  图标：📊 + 进度条可视化`).join('\n\n')}
+
+背景：${background}，数据卡片用 bg-white border-l-4 border-blue-500。
+色彩：数值用 text-2xl font-bold text-blue-600。`);
+        
+      } else {
+        // Standard content page
+        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+页面类型：内容详情
+页面标题：${title}
+核心内容与视觉构思
+
+布局：标准内容布局（左侧 8 col 文字，右侧 4 col 视觉）
+
+主要内容：
+${sectionPoints.length > 0 ? sectionPoints.map((point, i) => `  • ${point}`).join('\n') : `  • 核心概念解释
+  • 实际应用场景
+  • 相关建议指南`}
+
+右侧视觉：${sectionNumbers.length > 0 ? '数据图表展示' : '概念插图'}
+图标：💡 + ${title.slice(0, 10)}相关图标
+
+背景：bg-white，重点内容用 bg-yellow-50 highlight。`);
       }
-      
-      // Extract key content elements
-      const keyPoints = sectionContent.split('\n').filter(line => 
-        line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line)
-      ).slice(0, 3).map(point => point.replace(/^[-*\d.]\s*/, ''));
-      
-      if (keyPoints.length > 0) {
-        contentHighlights = [...contentHighlights, ...keyPoints.map(point => point.slice(0, 30) + '...')];
-      }
-      
-      const blueprint = `信息图：${index + 1}/${headers.length}
-- 页面类型：${pageType}
-- 页面标题：${title}
-- 核心内容与视觉构思：
-  布局：${layoutStructure}
-  主要元素：
-    - 构思：${colorScheme}
-    - 标题：${title} + 图标 ${icon}
-    - 视觉概念：${visualConcept}
-  内容重点：
-${contentHighlights.slice(0, 4).map(highlight => `    - ${highlight}`).join('\n')}
-  交互设计：
-    - 响应式布局适配
-    - 渐进式内容加载
-    - 用户友好的导航体验`;
-      
-      blueprintPages.push(blueprint);
     });
   } else {
-    // Analyze content without headers
-    let pageType = '综合内容展示';
-    let icon = '📋';
-    let layoutStructure = '标准文档布局';
-    let visualConcept = '信息整理展示';
-    let colorScheme = 'bg-white with clean typography';
+    // No headers - create content-based pages
+    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 50);
     
-    if (hasComparison) {
-      pageType = '对比分析';
-      icon = '⚖️';
-      layoutStructure = '对比分析布局';
-      visualConcept = '对比表格 + 关键差异';
-      colorScheme = 'bg-blue-50 with comparison highlights';
-    } else if (hasDataNumbers) {
-      pageType = '数据报告';
-      icon = '📊';
-      layoutStructure = '数据展示布局';
-      visualConcept = '数据可视化 + 分析洞察';
-      colorScheme = 'bg-gray-50 with data visualization';
-    } else if (listItems.length > 5) {
-      pageType = '清单总结';
-      icon = '📝';
-      layoutStructure = '列表展示布局';
-      visualConcept = '清单化展示 + 优先级';
-      colorScheme = 'bg-green-50 with checklist design';
-    }
-    
-    const keyContentElements = [
-      `总计 ${listItems.length} 个要点`,
-      `包含 ${links.length} 个外部链接`,
-      codeBlocks.length > 0 ? `${codeBlocks.length} 个代码示例` : '纯文本内容',
-      hasDataNumbers ? '包含数据统计' : '定性分析内容'
-    ];
-    
-    blueprintPages.push(`信息图：1/1
-- 页面类型：${pageType}
-- 页面标题：AI 响应分析
-- 核心内容与视觉构思：
-  布局：${layoutStructure}
-  主要元素：
-    - 构思：${colorScheme}
-    - 标题：AI 响应分析 + 图标 ${icon}
-    - 视觉概念：${visualConcept}
-  内容特征：
-${keyContentElements.map(element => `    - ${element}`).join('\n')}
-  设计重点：
-    - 信息层次化展示
-    - 关键内容突出
-    - 易读性优化`);
+    paragraphs.slice(0, Math.min(3, totalPages - 2)).forEach((paragraph, index) => {
+      const pageNum = index + 3;
+      const firstSentence = paragraph.split('.')[0] || `内容片段 ${index + 1}`;
+      const paragraphPoints = paragraph.split('\n')
+        .filter(line => line.match(/^[-*]\s/))
+        .slice(0, 3)
+        .map(point => point.replace(/^[-*]\s*/, ''));
+      
+      blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+页面类型：内容分析
+页面标题：${firstSentence.slice(0, 30)}
+核心内容与视觉构思
+
+布局：图文混排布局（2/3 文字 + 1/3 视觉）
+
+核心内容：
+${paragraphPoints.length > 0 ? paragraphPoints.map(point => `  • ${point.slice(0, 40)}`).join('\n') : `  • ${paragraph.slice(0, 100).split('.')[0]}
+  • 相关分析要点
+  • 实用指导建议`}
+
+视觉元素：信息图表 + 图标 📋
+背景：bg-slate-50，重点用 border-l-4 border-indigo-500 突出。`);
+    });
   }
   
-  return `🎯 设计蓝图生成
-
-原子设计师 · 大纲：
-
-${blueprintPages.join('\n\n')}
-
----
-💡 设计说明：
-- 基于内容结构智能分析
-- 采用适配性视觉设计方案  
-- 注重信息层次与用户体验
-- 响应式设计适配多设备
-- 内容驱动的交互设计`;
+  return blueprintPages.join('\n\n');
 };
 
 // Markdown component props type from former ReportView
