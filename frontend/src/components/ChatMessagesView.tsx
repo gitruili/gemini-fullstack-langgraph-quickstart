@@ -151,29 +151,27 @@ const callGeminiAPIForHTML = async (blueprint: string): Promise<string> => {
     throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
   }
 
-  const prompt = `你是一个专业的前端开发工程师和UI设计师。请根据以下完整的设计蓝图生成HTML+CSS+JavaScript代码。
+  const prompt = `作为专业前端开发工程师，请根据以下设计蓝图生成完整的HTML+CSS+JavaScript代码。
 
-蓝图已包含所有设计规范和页面内容，请严格按照执行。
+重要要求：
+1. 固定画布尺寸：448px × 597px
+2. 生成蓝图中指定的所有页面（通常6-10页）
+3. 多页面导航：键盘左右箭头 + 按钮导航
+4. 页面指示器显示当前页/总页数
+5. 禁用外部图片，使用CSS渐变和Emoji图标
+6. 现代CSS：Flexbox、Grid、渐变
+7. 字体：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+
+代码要求：
+- 紧凑简洁的代码结构，减少注释
+- 所有页面必须包含在单个HTML文档中
+- 使用简化的CSS类名和结构
+- 确保所有页面都正确实现
+
+请生成完整可运行的HTML文档，确保包含所有页面：
 
 设计蓝图：
-${blueprint}
-
-要求：
-1. 严格按照蓝图中的页面数量来生成HTML（如8页就生成8页）
-2. 每页必须对应蓝图中的具体设计：标题、布局、色彩、视觉元素
-3. 使用蓝图中提供的所有内容和数据
-4. 固定画布尺寸：448×597px，body { width: 448px; height: 597px; overflow: hidden; }
-5. 实现多页面导航系统，支持键盘（左右箭头）和按钮导航
-6. 使用纯CSS和JavaScript，不依赖外部库
-7. 禁用外部图片，使用CSS渐变、emoji图标、SVG等
-8. 包含页面指示器显示当前页数
-9. 严格按照蓝图的"背景"、"色彩"、"视觉元素"规范实现
-10. 使用现代CSS技术：Grid、Flexbox、渐变、动画等
-11. 字体：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
-12. 确保完美适配448×597px画布
-13. 生成完整可运行的HTML文档
-
-重要：蓝图中已包含所有必要的设计和内容信息，请严格按照执行，不要遗漏任何页面。`;
+${blueprint}`;
 
   console.log('Sending request to Gemini API...');
   console.log('Prompt length:', prompt.length);
@@ -226,6 +224,18 @@ ${blueprint}
           console.log('Raw API response length:', htmlContent.length);
           console.log('Raw API response preview:', htmlContent.substring(0, 500));
           
+          // Check if response appears to be truncated
+          const lastLine = htmlContent.trim().split('\n').pop();
+          const isTruncated = !htmlContent.includes('</html>') || 
+                            lastLine?.length < 10 || 
+                            htmlContent.endsWith('{') || 
+                            htmlContent.endsWith(':') ||
+                            htmlContent.endsWith(';') ||
+                            htmlContent.endsWith(',');
+          
+          console.log('Response appears truncated:', isTruncated);
+          console.log('Last 200 characters:', htmlContent.slice(-200));
+          
           // Extract HTML from markdown code blocks if present
           const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
           if (codeBlockMatch) {
@@ -256,6 +266,13 @@ ${blueprint}
           if (!htmlContent.includes('<!DOCTYPE html>')) {
             console.warn('HTML content does not appear to be a complete document');
             console.log('Content starts with:', htmlContent.substring(0, 200));
+          }
+          
+          // Handle truncated responses
+          if (isTruncated) {
+            console.warn('⚠️  API response appears to be truncated. This may result in incomplete HTML.');
+            // You could implement retry logic here or show a user warning
+            alert('Warning: The generated HTML appears to be incomplete due to response length limits. The visualization may not display all pages correctly.');
           }
           
           // Validate the HTML contains multi-page structure
