@@ -2,25 +2,9 @@
 import pathlib
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-
-# Import our new API routes
-from .api_routes import router as xiaohongshu_router
 
 # Define the FastAPI app
-app = FastAPI(title="Gemini LangGraph Agent with XiaoHongShu Publisher")
-
-# Add CORS middleware to allow frontend requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include our API routes
-app.include_router(xiaohongshu_router)
+app = FastAPI()
 
 
 def create_frontend_router(build_dir="../frontend/dist"):

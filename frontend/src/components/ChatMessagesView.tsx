@@ -781,11 +781,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const [showBlueprint, setShowBlueprint] = useState(false);
   const [showHTML, setShowHTML] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  
-  // XiaoHongShu publishing state
-  const [isPublishingXHS, setIsPublishingXHS] = useState(false);
-  const [xhsPublishError, setXhsPublishError] = useState<string | null>(null);
-  const [xhsPublishStatus, setXhsPublishStatus] = useState<{taskId: string, status: string, message: string} | null>(null);
 
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
@@ -1004,240 +999,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     }
   };
 
-  const handlePublishToXiaoHongShu = async () => {
-    if (!generatedHTML) {
-      alert('请先生成HTML代码');
-      return;
-    }
-
-    setIsPublishingXHS(true);
-    setXhsPublishError(null);
-    setXhsPublishStatus(null);
-
-    try {
-      console.log('开始准备发布到小红书...');
-      
-      // 1. Generate images using the same logic as PNG generation
-      const images = await generateImagesForXHS();
-      if (!images || images.length === 0) {
-        throw new Error('图片生成失败');
-      }
-
-      // 2. Generate content suitable for XiaoHongShu
-      const xhsContent = await generateXHSContent(messageContent);
-
-      // 3. Call the backend API to publish
-      const response = await fetch('/api/xiaohongshu/publish', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          images: images,
-          title: xhsContent.title,
-          content: xhsContent.content,
-          tags: xhsContent.tags,
-          headless: false, // Show browser for login
-          debug: true
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`发布请求失败: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('发布任务创建成功:', result);
-
-      // Start polling for status
-      setXhsPublishStatus({
-        taskId: result.task_id,
-        status: result.status,
-        message: result.message
-      });
-
-      // Poll for status updates
-      pollPublishStatus(result.task_id);
-
-    } catch (error) {
-      console.error('发布到小红书失败:', error);
-      setXhsPublishError(error instanceof Error ? error.message : '未知错误');
-    } finally {
-      setIsPublishingXHS(false);
-    }
-  };
-
-  const generateImagesForXHS = async (): Promise<string[]> => {
-    /**
-     * Generate base64 images for XiaoHongShu publishing
-     * Same logic as PNG generation but returns base64 strings
-     */
-    try {
-      // Create iframe for rendering
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.left = '-9999px';
-      iframe.style.top = '-9999px';
-      iframe.style.width = '448px';
-      iframe.style.height = '597px';
-      iframe.style.border = 'none';
-      iframe.style.background = '#ffffff';
-      
-      document.body.appendChild(iframe);
-      
-      // Write HTML content
-      iframe.contentDocument?.open();
-      iframe.contentDocument?.write(generatedHTML!);
-      iframe.contentDocument?.close();
-      
-      // Wait for loading
-      await new Promise((resolve) => {
-        iframe.onload = resolve;
-        setTimeout(resolve, 3000);
-      });
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const iframeBody = iframe.contentDocument?.body;
-      if (!iframeBody) {
-        throw new Error('无法访问iframe内容');
-      }
-      
-      // Find pages
-      const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page');
-      const images: string[] = [];
-      
-      if (pages.length === 0) {
-        // Single page
-        const dataUrl = await htmlToImage.toPng(iframeBody, {
-          width: 448,
-          height: 597,
-          quality: 1.0,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-        });
-        
-        // Remove data:image/png;base64, prefix
-        const base64 = dataUrl.split(',')[1];
-        images.push(base64);
-      } else {
-        // Multiple pages
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i] as HTMLElement;
-          
-          // Show only current page
-          pages.forEach((p, index) => {
-            const element = p as HTMLElement;
-            if (index === i) {
-              element.style.display = 'flex';
-              element.style.opacity = '1';
-              element.style.visibility = 'visible';
-            } else {
-              element.style.display = 'none';
-              element.style.opacity = '0';
-              element.style.visibility = 'hidden';
-            }
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const dataUrl = await htmlToImage.toPng(page, {
-            width: 448,
-            height: 597,
-            quality: 1.0,
-            pixelRatio: 2,
-            backgroundColor: '#ffffff',
-          });
-          
-          const base64 = dataUrl.split(',')[1];
-          images.push(base64);
-        }
-      }
-      
-      // Clean up
-      document.body.removeChild(iframe);
-      
-      console.log(`生成了 ${images.length} 张图片用于小红书发布`);
-      return images;
-      
-    } catch (error) {
-      console.error('生成小红书图片失败:', error);
-      throw error;
-    }
-  };
-
-  const generateXHSContent = async (originalContent: string) => {
-    /**
-     * Generate XiaoHongShu-friendly content
-     */
-    try {
-      const response = await fetch('/api/xiaohongshu/generate-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          original_content: originalContent
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('内容生成失败');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('生成小红书内容失败:', error);
-      // Fallback content
-      const lines = originalContent.split('\n').filter(line => line.trim());
-      return {
-        title: lines[0]?.substring(0, 30) + '...' || 'AI生成的信息图表',
-        content: lines.slice(0, 3).join('\n') + '\n\n📊 更多内容请看图片!',
-        tags: ['AI', '信息图表', '数据可视化']
-      };
-    }
-  };
-
-  const pollPublishStatus = async (taskId: string) => {
-    /**
-     * Poll for publish status updates
-     */
-    const maxAttempts = 60; // 5 minutes max
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/xiaohongshu/status/${taskId}`);
-        if (!response.ok) {
-          throw new Error('状态查询失败');
-        }
-
-        const status = await response.json();
-        setXhsPublishStatus({
-          taskId,
-          status: status.status,
-          message: status.message
-        });
-
-        if (status.status === 'completed' || status.status === 'failed') {
-          return; // Stop polling
-        }
-
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000); // Poll every 5 seconds
-        } else {
-          setXhsPublishError('发布超时，请检查任务状态');
-        }
-      } catch (error) {
-        console.error('状态轮询失败:', error);
-        setXhsPublishError('状态查询失败');
-      }
-    };
-
-    // Start polling after a short delay
-    setTimeout(poll, 2000);
-  };
-
   return (
     <div className={`relative break-words flex flex-col`}>
       {activityForThisBubble && activityForThisBubble.length > 0 && (
@@ -1331,29 +1092,23 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
       
       {pngError && (
-        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-600 text-sm">❌ {pngError}</p>
+        <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-red-300 flex items-center gap-2">
+              ❌ PNG生成错误
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPngError(null)}
+              className="text-red-400 hover:text-red-200 hover:bg-red-800/30"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-red-200 mt-2">{pngError}</p>
         </div>
       )}
-
-        {/* XiaoHongShu Publishing Status */}
-        {xhsPublishStatus && (
-          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-600 text-sm">
-              📱 发布状态: <span className="font-medium">{xhsPublishStatus.status}</span>
-            </p>
-            <p className="text-blue-600 text-sm">{xhsPublishStatus.message}</p>
-            {xhsPublishStatus.taskId && (
-              <p className="text-blue-500 text-xs mt-1">任务ID: {xhsPublishStatus.taskId}</p>
-            )}
-          </div>
-        )}
-
-        {xhsPublishError && (
-          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-600 text-sm">❌ 小红书发布失败: {xhsPublishError}</p>
-          </div>
-        )}
       
       <div className="flex gap-2 justify-end mt-4 mb-2">
         <Button
@@ -1410,24 +1165,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           {isGeneratingPNG ? '生成PNG中...' : '生成PNG图片'}
-        </Button>
-
-        <Button
-          onClick={handlePublishToXiaoHongShu}
-          disabled={isPublishingXHS || !generatedHTML}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
-          variant="default"
-        >
-          {isPublishingXHS ? (
-            <>
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              发布中...
-            </>
-          ) : (
-            <>
-              📱 发布到小红书
-            </>
-          )}
         </Button>
       </div>
     </div>
