@@ -233,15 +233,46 @@ ${blueprint}
             console.log('Extracted HTML from code block, length:', htmlContent.length);
           }
           
+          // Additional extraction patterns for different formats
+          if (!htmlContent.includes('<!DOCTYPE html>')) {
+            // Try to find HTML content after "```html" or similar markers
+            const htmlStartPatterns = [
+              /```html\s*\n([\s\S]*)/,
+              /```\s*\n(<!DOCTYPE html[\s\S]*)/,
+              /(<!DOCTYPE html[\s\S]*)/
+            ];
+            
+            for (const pattern of htmlStartPatterns) {
+              const match = htmlContent.match(pattern);
+              if (match) {
+                htmlContent = match[1];
+                console.log('Extracted HTML using pattern, length:', htmlContent.length);
+                break;
+              }
+            }
+          }
+          
+          // Ensure we have a complete HTML document
+          if (!htmlContent.includes('<!DOCTYPE html>')) {
+            console.warn('HTML content does not appear to be a complete document');
+            console.log('Content starts with:', htmlContent.substring(0, 200));
+          }
+          
           // Validate the HTML contains multi-page structure
-          const pageCount = (htmlContent.match(/id="page-/g) || []).length;
+          const pageCount = (htmlContent.match(/id="page-?\d+"/g) || []).length;
           console.log('Generated HTML page count:', pageCount);
           
           if (pageCount === 0) {
             console.warn('Generated HTML appears to have no pages, this might be incorrect');
+            // Try alternative page detection patterns
+            const altPageCount = (htmlContent.match(/class="page"/g) || []).length;
+            console.log('Alternative page count detection:', altPageCount);
           }
           
           console.log('Final HTML length:', htmlContent.length);
+          console.log('HTML validation - DOCTYPE:', htmlContent.includes('<!DOCTYPE html>'));
+          console.log('HTML validation - closing tag:', htmlContent.includes('</html>'));
+          
           return htmlContent;
         } else {
           console.error('No parts found in candidate.content:', candidate.content);
