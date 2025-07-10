@@ -13,6 +13,7 @@ import {
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
 import * as htmlToImage from 'html-to-image';
+import JSZip from 'jszip';
 
 // Blueprint generation function
 // API call to generate blueprint using Gemini
@@ -779,6 +780,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   // UI state variables
   const [showBlueprint, setShowBlueprint] = useState(false);
   const [showHTML, setShowHTML] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
@@ -855,60 +857,142 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     setPngError(null);
 
     try {
-      // Create a temporary container for the HTML content
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '-9999px';
-      tempContainer.style.width = '448px';
-      tempContainer.style.height = '597px';
-      tempContainer.style.overflow = 'hidden';
-      tempContainer.style.background = '#ffffff';
+      console.log('开始生成PNG图片...');
       
-      // Set the HTML content
-      tempContainer.innerHTML = generatedHTML;
+      // Create a hidden iframe to properly render the HTML with all styles
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '-9999px';
+      iframe.style.width = '448px';
+      iframe.style.height = '597px';
+      iframe.style.border = 'none';
+      iframe.style.background = '#ffffff';
       
-      // Append to body temporarily
-      document.body.appendChild(tempContainer);
+      document.body.appendChild(iframe);
       
-      // Wait for any fonts or resources to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Write the HTML content to iframe
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(generatedHTML);
+      iframe.contentDocument?.close();
       
-      // Generate PNG using html-to-image
-      const dataUrl = await htmlToImage.toPng(tempContainer, {
-        width: 448,
-        height: 597,
-        style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left',
-        },
-        quality: 1.0,
-        pixelRatio: 2, // Higher resolution
+      // Wait for the iframe to fully load
+      await new Promise((resolve) => {
+        iframe.onload = resolve;
+        // Fallback timeout
+        setTimeout(resolve, 3000);
       });
       
-      // Create download link
-      const link = document.createElement('a');
-      link.download = `infographic-${new Date().getTime()}.png`;
-      link.href = dataUrl;
+      // Additional wait for fonts and styles to load
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const iframeBody = iframe.contentDocument?.body;
+      if (!iframeBody) {
+        throw new Error('无法访问iframe内容');
+      }
+      
+      // Find all pages in the HTML
+      const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page');
+      console.log(`发现 ${pages.length} 个页面元素`);
+      
+      if (pages.length === 0) {
+        console.log('未找到页面元素，尝试截取整个body');
+        // If no specific pages found, capture the whole body
+        const dataUrl = await htmlToImage.toPng(iframeBody, {
+          width: 448,
+          height: 597,
+          style: {
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+          },
+          quality: 1.0,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        });
+        
+        // Single page download
+        const link = document.createElement('a');
+        link.download = `infographic-${new Date().getTime()}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('单页PNG生成成功');
+      } else {
+        // Multiple pages - create ZIP
+        const zip = new JSZip();
+        
+        for (let i = 0; i < pages.length; i++) {
+          const page = pages[i] as HTMLElement;
+          console.log(`正在截取第 ${i + 1} 页...`);
+          
+          // Make sure only this page is visible
+          pages.forEach((p, index) => {
+            const element = p as HTMLElement;
+            if (index === i) {
+              element.style.display = 'flex';
+              element.style.opacity = '1';
+              element.style.visibility = 'visible';
+            } else {
+              element.style.display = 'none';
+              element.style.opacity = '0';
+              element.style.visibility = 'hidden';
+            }
+          });
+          
+          // Wait a bit for the visibility changes to take effect
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          try {
+            const dataUrl = await htmlToImage.toPng(page, {
+              width: 448,
+              height: 597,
+              style: {
+                transform: 'scale(1)',
+                transformOrigin: 'top left',
+              },
+              quality: 1.0,
+              pixelRatio: 2,
+              backgroundColor: '#ffffff',
+            });
+            
+            // Convert data URL to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            
+            zip.file(`page-${i + 1}.png`, blob);
+            console.log(`第 ${i + 1} 页截取成功`);
+          } catch (pageError) {
+            console.error(`第 ${i + 1} 页截取失败:`, pageError);
+            setPngError(`第 ${i + 1} 页截取失败: ${pageError instanceof Error ? pageError.message : '未知错误'}`);
+          }
+        }
+        
+        // Generate and download ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = `infographic-pages-${new Date().getTime()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        
+        console.log(`${pages.length} 页PNG打包下载成功`);
+      }
       
       // Clean up
-      document.body.removeChild(tempContainer);
-      
-      console.log('PNG generated and downloaded successfully');
+      document.body.removeChild(iframe);
       
     } catch (error) {
       console.error('Error generating PNG:', error);
       setPngError('PNG生成失败: ' + (error instanceof Error ? error.message : '未知错误'));
       
       // Clean up on error
-      const tempContainer = document.querySelector('div[style*="-9999px"]');
-      if (tempContainer) {
-        document.body.removeChild(tempContainer);
+      const iframe = document.querySelector('iframe[style*="-9999px"]');
+      if (iframe) {
+        document.body.removeChild(iframe);
       }
     } finally {
       setIsGeneratingPNG(false);
@@ -976,6 +1060,37 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
       
+      {showPreview && generatedHTML && (
+        <div className="mt-4 p-6 bg-purple-900/20 rounded-lg border-2 border-purple-500/30 shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-purple-300 flex items-center gap-2">
+              👀 HTML预览
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPreview(false)}
+              className="text-purple-400 hover:text-purple-200 hover:bg-purple-800/30"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="bg-neutral-800/50 p-4 rounded-md">
+            <iframe
+              srcDoc={generatedHTML}
+              style={{
+                width: '448px',
+                height: '597px',
+                border: '1px solid #666',
+                borderRadius: '4px',
+                backgroundColor: '#ffffff'
+              }}
+              title="HTML Preview"
+            />
+          </div>
+        </div>
+      )}
+      
       {pngError && (
         <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
           <div className="flex justify-between items-center">
@@ -1033,9 +1148,20 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         <Button
           variant="outline"
           size="sm"
+          className="bg-purple-700 hover:bg-purple-600 text-purple-100 border-purple-500"
+          onClick={() => setShowPreview(!showPreview)}
+          disabled={!generatedHTML}
+        >
+          {showPreview ? "Hide Preview" : "Preview"}
+          <ExternalLink className="ml-1 h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleGeneratePNG}
           disabled={!generatedHTML || isGeneratingPNG}
-          className="text-purple-400 border-purple-400 hover:bg-purple-400/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-orange-400 border-orange-400 hover:bg-orange-400/10 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           {isGeneratingPNG ? '生成PNG中...' : '生成PNG图片'}
