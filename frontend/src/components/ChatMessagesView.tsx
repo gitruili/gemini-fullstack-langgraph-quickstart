@@ -1,10 +1,10 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Copy, CopyCheck, FileText, X, Code } from "lucide-react";
+import { Loader2, Copy, CopyCheck, FileText, X, Code, ExternalLink } from "lucide-react";
 import { InputForm } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
+import * as htmlToImage from 'html-to-image';
 
 // Blueprint generation function
 // API call to generate blueprint using Gemini
@@ -765,10 +766,19 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   handleCopy,
   copiedMessageId,
 }) => {
+  const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
+  const [generatedBlueprint, setGeneratedBlueprint] = useState<string | null>(null);
+  const [blueprintError, setBlueprintError] = useState<string | null>(null);
+  const [isGeneratingHTML, setIsGeneratingHTML] = useState(false);
+  const [generatedHTML, setGeneratedHTML] = useState<string | null>(null);
+  const [htmlError, setHtmlError] = useState<string | null>(null);
+  const [isGeneratingPNG, setIsGeneratingPNG] = useState(false);
+  const [pngError, setPngError] = useState<string | null>(null);
+  const htmlContainerRef = useRef<HTMLDivElement>(null);
+  
+  // UI state variables
   const [showBlueprint, setShowBlueprint] = useState(false);
-  const [blueprint, setBlueprint] = useState<string>('');
   const [showHTML, setShowHTML] = useState(false);
-  const [htmlCode, setHtmlCode] = useState<string>('');
 
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
@@ -784,13 +794,13 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     try {
       const generatedBlueprint = await generateBlueprint(messageContent);
       console.log('Generated blueprint:', generatedBlueprint); // Debug log
-      setBlueprint(generatedBlueprint);
+      setGeneratedBlueprint(generatedBlueprint);
       setShowBlueprint(true);
       console.log('Blueprint state updated, showBlueprint:', true); // Debug log
     } catch (error) {
       console.error('Error generating blueprint:', error);
       // Fallback blueprint
-      setBlueprint(`信息图 1 / 1
+      setGeneratedBlueprint(`信息图 1 / 1
 页面类型：内容展示
 页面标题：AI 响应内容
 核心内容与视觉构思
@@ -810,27 +820,98 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const handleGenerateHTML = async () => {
     console.log('HTML button clicked!'); // Debug log
     try {
-      let blueprintToUse = blueprint;
+      let blueprintToUse = generatedBlueprint; // Use generatedBlueprint state
       
       // If no blueprint exists, generate one first
       if (!blueprintToUse) {
         console.log('No existing blueprint, generating new one...'); // Debug log
         blueprintToUse = await generateBlueprint(messageContent);
-        setBlueprint(blueprintToUse); // Store it for future use
+        setGeneratedBlueprint(blueprintToUse); // Store it for future use
       } else {
         console.log('Using existing blueprint'); // Debug log
       }
       
+      console.log('Generating HTML with blueprint...'); // Debug log
       const generatedHTML = await generateHTML(blueprintToUse);
       console.log('Generated HTML:', generatedHTML); // Debug log
-      setHtmlCode(generatedHTML);
+      setGeneratedHTML(generatedHTML);
       setShowHTML(true);
       console.log('HTML state updated, showHTML:', true); // Debug log
     } catch (error) {
       console.error('Error generating HTML:', error);
       // Fallback HTML
-      setHtmlCode(generateFallbackHTML(messageContent));
+      setGeneratedHTML(generateFallbackHTML(messageContent));
       setShowHTML(true);
+    }
+  };
+
+  const handleGeneratePNG = async () => {
+    if (!generatedHTML) {
+      alert('请先生成HTML代码');
+      return;
+    }
+
+    setIsGeneratingPNG(true);
+    setPngError(null);
+
+    try {
+      // Create a temporary container for the HTML content
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '-9999px';
+      tempContainer.style.width = '448px';
+      tempContainer.style.height = '597px';
+      tempContainer.style.overflow = 'hidden';
+      tempContainer.style.background = '#ffffff';
+      
+      // Set the HTML content
+      tempContainer.innerHTML = generatedHTML;
+      
+      // Append to body temporarily
+      document.body.appendChild(tempContainer);
+      
+      // Wait for any fonts or resources to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Generate PNG using html-to-image
+      const dataUrl = await htmlToImage.toPng(tempContainer, {
+        width: 448,
+        height: 597,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
+        quality: 1.0,
+        pixelRatio: 2, // Higher resolution
+      });
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `infographic-${new Date().getTime()}.png`;
+      link.href = dataUrl;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      document.body.removeChild(tempContainer);
+      
+      console.log('PNG generated and downloaded successfully');
+      
+    } catch (error) {
+      console.error('Error generating PNG:', error);
+      setPngError('PNG生成失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      
+      // Clean up on error
+      const tempContainer = document.querySelector('div[style*="-9999px"]');
+      if (tempContainer) {
+        document.body.removeChild(tempContainer);
+      }
+    } finally {
+      setIsGeneratingPNG(false);
     }
   };
 
@@ -866,7 +947,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           </div>
           <div className="bg-neutral-800/50 p-4 rounded-md">
             <pre className="text-sm text-blue-100 whitespace-pre-wrap font-mono leading-relaxed">
-              {blueprint || '蓝图生成中...'}
+              {generatedBlueprint || '蓝图生成中...'}
             </pre>
           </div>
         </div>
@@ -889,9 +970,28 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           </div>
           <div className="bg-neutral-800/50 p-4 rounded-md max-h-96 overflow-y-auto">
             <pre className="text-sm text-green-100 whitespace-pre-wrap font-mono leading-relaxed">
-              {htmlCode || 'HTML 代码生成中...'}
+              {generatedHTML || 'HTML 代码生成中...'}
             </pre>
           </div>
+        </div>
+      )}
+      
+      {pngError && (
+        <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-red-300 flex items-center gap-2">
+              ❌ PNG生成错误
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPngError(null)}
+              className="text-red-400 hover:text-red-200 hover:bg-red-800/30"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-red-200 mt-2">{pngError}</p>
         </div>
       )}
       
@@ -928,6 +1028,17 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         >
           {showHTML ? "Hide HTML" : "HTML"}
           <Code className="ml-1 h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGeneratePNG}
+          disabled={!generatedHTML || isGeneratingPNG}
+          className="text-purple-400 border-purple-400 hover:bg-purple-400/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          {isGeneratingPNG ? '生成PNG中...' : '生成PNG图片'}
         </Button>
       </div>
     </div>
