@@ -14,217 +14,134 @@ import {
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
 
 // Blueprint generation function
-const generateBlueprint = (content: string): string => {
-  const lines = content.split('\n').filter(line => line.trim());
+// API call to generate blueprint using Gemini
+const callGeminiAPI = async (content: string): Promise<string> => {
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   
-  // Extract main topic from first few lines
-  const firstParagraph = lines.slice(0, 5).join(' ');
-  const mainTopic = firstParagraph.length > 100 ? firstParagraph.slice(0, 100) + '...' : firstParagraph;
-  
-  // Analyze content structure
-  const headers = lines.filter(line => line.match(/^#{1,6}\s/));
-  const listItems = lines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/));
-  const strongText = content.match(/\*\*(.*?)\*\*/g) || [];
-  const numbers = content.match(/\d+[%]?/g) || [];
-  
-  // Content analysis patterns
-  const contentLower = content.toLowerCase();
-  const hasComparison = /vs|versus|compared?|differ|advantage|disadvantage|better|worse|before.*after|traditional.*modern/.test(contentLower);
-  const hasNumbers = numbers.length > 3;
-  const hasSteps = /step|process|method|how to|guide|first|second|third|then|next|finally/.test(contentLower);
-  
-  let blueprintPages: string[] = [];
-  const totalPages = Math.max(headers.length + 1, 3); // +1 for hero page
-  
-  // Generate Hero Page
-  const heroTitle = headers.length > 0 ? 
-    headers[0].replace(/^#+\s*/, '') : 
-    content.split('.')[0] || "AI 响应内容";
-  
-  const heroSubtitle = mainTopic.length > 50 ? 
-    mainTopic.slice(0, 50).split(' ').slice(0, -1).join(' ') + '...' : 
-    mainTopic;
-  
-  blueprintPages.push(`信息图 1 / ${totalPages}
-页面类型：封面（Hero）
-页面标题：《${heroTitle}》
+  if (!GEMINI_API_KEY) {
+    throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
+  }
+
+  const prompt = `你是一个专业的信息图表设计师。请根据以下内容生成详细的设计蓝图。
+
+内容：
+${content}
+
+请按照以下格式生成多页信息图表的设计蓝图：
+
+信息图 1 / [总页数]
+页面类型：[封面页面/概览/对比/数据展示/内容详情/流程步骤]
+页面标题：[具体标题]
 核心内容与视觉构思
 
-布局：全屏 Hero；中央居中栅格，宽 8 col。
+布局：[具体布局描述]
+背景：[背景色彩和样式]
+内容：[具体内容安排]
+视觉元素：[图标、图表、动效等]
+色彩：[色彩搭配方案]
 
-背景：bg-gradient-to-br from-blue-600 via-indigo-500 to-purple-400，叠加 15% 透明度的数据纹理。
+要求：
+1. 生成3-9页的完整设计蓝图
+2. 第1页必须是封面页面（Hero Page）
+3. 第2页必须是概览页面（Executive Summary）
+4. 根据内容特点选择合适的页面类型（对比、数据展示、流程步骤等）
+5. 每页都要有具体的布局、色彩、视觉元素描述
+6. 适合448×597px的固定画布尺寸
+7. 使用emoji图标和CSS渐变背景
+8. 页面间要有逻辑连贯性
 
-文案：
-  主标题：${heroTitle}
-  副标题："${heroSubtitle}"
-  Icon 组：🔍 + 📊（居标题上方，用 text-5xl）
+请根据内容的实际特点和信息量来确定页面数量和类型。`;
 
-动效：标题用 animate-fade-in-up，背景纹理低速 animate-pulse。`);
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }
+      })
+    });
 
-  // Generate Overview Page
-  const keyStats = numbers.slice(0, 3);
-  const keyPoints = listItems.slice(0, 3).map(item => 
-    item.replace(/^[-*\d.]\s*/, '').slice(0, 40)
-  );
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      return data.candidates[0].content.parts[0].text;
+    } else {
+      throw new Error('Invalid API response format');
+    }
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    // Fallback to a basic blueprint if API fails
+    return generateFallbackBlueprint(content);
+  }
+};
+
+// Fallback blueprint generator
+const generateFallbackBlueprint = (content: string): string => {
+  const firstSentence = content.split('.')[0] || 'AI 数据分析';
   
-  blueprintPages.push(`信息图 2 / ${totalPages}
+  return `信息图 1 / 3
+页面类型：封面页面（Hero Page）
+页面标题：${firstSentence.slice(0, 30)}
+核心内容与视觉构思
+
+布局：垂直居中全屏展示
+背景：渐变色 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500
+内容：主标题 + 副标题
+视觉元素：🔍 📊 组合图标
+色彩：白色文字，渐变背景
+
+信息图 2 / 3
 页面类型：概览（Executive Summary）
 页面标题：核心要点总览
 核心内容与视觉构思
 
-布局：左右对分（6 col / 6 col）。左侧文字，右侧可视化图表。
+布局：左右对分布局
+背景：bg-slate-50
+内容：关键洞察与分析要点
+视觉元素：概念图谱展示
+色彩：text-indigo-600 主色调
 
-左侧三行摘要（大字＋粗体）：
-${keyPoints.length > 0 ? keyPoints.map(point => `  ${point}`).join('\n') : `  关键洞察与分析
-  数据驱动的结论
-  实用性建议指南`}
-
-右侧视觉：${hasNumbers ? '数据仪表盘（' + keyStats.join('、') + '等关键指标）' : '概念图谱（中心主题辐射式展开）'}。
-
-色彩：bg-slate-50，主色 text-indigo-600；图表使用 stroke-blue-400/60。`);
-
-  // Generate content pages based on headers
-  if (headers.length > 0) {
-    headers.forEach((header, index) => {
-      const pageNum = index + 3; // +2 for hero and overview
-      if (pageNum > totalPages) return;
-      
-      const title = header.replace(/^#+\s*/, '');
-      const headerIndex = lines.indexOf(header);
-      const nextHeaderIndex = lines.findIndex((line, i) => i > headerIndex && line.match(/^#{1,6}\s/));
-      const sectionContent = lines.slice(headerIndex + 1, nextHeaderIndex === -1 ? lines.length : nextHeaderIndex).join('\n');
-      
-      // Extract actual content
-      const sectionPoints = sectionContent.split('\n')
-        .filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
-        .slice(0, 4)
-        .map(point => point.replace(/^[-*\d.]\s*/, '').slice(0, 50));
-      
-      const sectionNumbers = sectionContent.match(/\d+[%]?/g) || [];
-      const sectionLower = sectionContent.toLowerCase();
-      
-      // Determine page type and design
-      let pageType = '信息展示';
-      let layout = '标准栅格布局（8 col）';
-      let background = 'bg-white';
-      let visual = '要点列表';
-      
-      if (hasComparison && (title.toLowerCase().includes('vs') || sectionLower.includes('compar') || sectionLower.includes('对比'))) {
-        pageType = '核心要点对比';
-        layout = '上下对比卡片布局';
-        background = 'bg-gray-50';
-        visual = `对比表格：
-维度	方案A	方案B
-${sectionPoints.length >= 2 ? sectionPoints.slice(0, 2).map((point, i) => `特点${i+1}	${point.split('').slice(0, 20).join('')}	优化方案`).join('\n') : '效率	传统方式	AI优化\n成本	高成本	成本降低'}`;
-        
-        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
-页面类型：${pageType}
-页面标题：${title}
-核心内容与视觉构思
-
-布局：${layout}
-
-上半部分：bg-blue-100 标题：方案A 🔄
-下半部分：bg-green-100 标题：方案B 🤖
-
-${visual}
-
-色彩：对比色突出差异，用 text-blue-600 和 text-green-600。`);
-        
-      } else if (hasSteps && sectionPoints.length > 2) {
-        pageType = '流程步骤';
-        layout = '垂直时间线布局';
-        background = 'bg-gradient-to-b from-blue-50 to-indigo-100';
-        
-        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
-页面类型：${pageType}
-页面标题：${title}
-核心内容与视觉构思
-
-布局：${layout}
-
-步骤卡片：
-${sectionPoints.slice(0, 4).map((point, i) => `  步骤 ${i+1}：${point}
-  图标：${['🎯', '⚡', '📈', '✅'][i]} + 连接线`).join('\n\n')}
-
-背景：${background}，步骤卡片用 bg-white shadow-sm。
-动效：步骤依次 animate-slide-in-right。`);
-        
-      } else if (hasNumbers && sectionNumbers.length > 2) {
-        pageType = '数据展示';
-        layout = '数据仪表盘布局（4x2 grid）';
-        background = 'bg-gray-50';
-        
-        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
-页面类型：${pageType}
-页面标题：${title}
-核心内容与视觉构思
-
-布局：${layout}
-
-关键指标卡片：
-${sectionNumbers.slice(0, 4).map((num, i) => `  指标 ${i+1}：${num}
-  描述：${sectionPoints[i] || '相关数据指标'}
-  图标：📊 + 进度条可视化`).join('\n\n')}
-
-背景：${background}，数据卡片用 bg-white border-l-4 border-blue-500。
-色彩：数值用 text-2xl font-bold text-blue-600。`);
-        
-      } else {
-        // Standard content page
-        blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
+信息图 3 / 3
 页面类型：内容详情
-页面标题：${title}
+页面标题：详细分析
 核心内容与视觉构思
 
-布局：标准内容布局（左侧 8 col 文字，右侧 4 col 视觉）
+布局：标准内容布局
+背景：bg-white
+内容：核心概念和实际应用
+视觉元素：相关图标和图表
+色彩：重点内容 bg-yellow-50 突出`;
+};
 
-主要内容：
-${sectionPoints.length > 0 ? sectionPoints.map((point, i) => `  • ${point}`).join('\n') : `  • 核心概念解释
-  • 实际应用场景
-  • 相关建议指南`}
-
-右侧视觉：${sectionNumbers.length > 0 ? '数据图表展示' : '概念插图'}
-图标：💡 + ${title.slice(0, 10)}相关图标
-
-背景：bg-white，重点内容用 bg-yellow-50 highlight。`);
-      }
-    });
-  } else {
-    // No headers - create content-based pages
-    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 50);
-    
-    paragraphs.slice(0, Math.min(3, totalPages - 2)).forEach((paragraph, index) => {
-      const pageNum = index + 3;
-      const firstSentence = paragraph.split('.')[0] || `内容片段 ${index + 1}`;
-      const paragraphPoints = paragraph.split('\n')
-        .filter(line => line.match(/^[-*]\s/))
-        .slice(0, 3)
-        .map(point => point.replace(/^[-*]\s*/, ''));
-      
-      blueprintPages.push(`信息图 ${pageNum} / ${totalPages}
-页面类型：内容分析
-页面标题：${firstSentence.slice(0, 30)}
-核心内容与视觉构思
-
-布局：图文混排布局（2/3 文字 + 1/3 视觉）
-
-核心内容：
-${paragraphPoints.length > 0 ? paragraphPoints.map(point => `  • ${point.slice(0, 40)}`).join('\n') : `  • ${paragraph.slice(0, 100).split('.')[0]}
-  • 相关分析要点
-  • 实用指导建议`}
-
-视觉元素：信息图表 + 图标 📋
-背景：bg-slate-50，重点用 border-l-4 border-indigo-500 突出。`);
-    });
+// Updated blueprint generation function
+const generateBlueprint = async (content: string): Promise<string> => {
+  try {
+    return await callGeminiAPI(content);
+  } catch (error) {
+    console.error('Blueprint generation failed:', error);
+    return generateFallbackBlueprint(content);
   }
-  
-  return blueprintPages.join('\n\n');
 };
 
 // HTML/CSS generation function
-const generateHTML = (content: string): string => {
-  const blueprint = generateBlueprint(content);
+const generateHTML = async (content: string): Promise<string> => {
+  const blueprint = await generateBlueprint(content);
   const lines = blueprint.split('\n');
   
   // Parse blueprint to extract all page information
@@ -1104,10 +1021,10 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     ? message.content
     : JSON.stringify(message.content);
 
-  const handleGenerateBlueprint = () => {
+  const handleGenerateBlueprint = async () => {
     console.log('Blueprint button clicked!'); // Debug log
     try {
-      const generatedBlueprint = generateBlueprint(messageContent);
+      const generatedBlueprint = await generateBlueprint(messageContent);
       console.log('Generated blueprint:', generatedBlueprint); // Debug log
       setBlueprint(generatedBlueprint);
       setShowBlueprint(true);
@@ -1132,10 +1049,10 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     }
   };
 
-  const handleGenerateHTML = () => {
+  const handleGenerateHTML = async () => {
     console.log('HTML button clicked!'); // Debug log
     try {
-      const generatedHTML = generateHTML(messageContent);
+      const generatedHTML = await generateHTML(messageContent);
       console.log('Generated HTML:', generatedHTML); // Debug log
       setHtmlCode(generatedHTML);
       setShowHTML(true);
