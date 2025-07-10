@@ -211,32 +211,49 @@ ${blueprint}
 
     const data = await response.json();
     console.log('API response data keys:', Object.keys(data));
+    console.log('Full API response:', JSON.stringify(data, null, 2));
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      let htmlContent = data.candidates[0].content.parts[0].text;
-      console.log('Raw API response length:', htmlContent.length);
-      console.log('Raw API response preview:', htmlContent.substring(0, 500));
+    if (data.candidates && data.candidates.length > 0) {
+      console.log('Candidates found:', data.candidates.length);
+      console.log('First candidate:', JSON.stringify(data.candidates[0], null, 2));
       
-      // Extract HTML from markdown code blocks if present
-      const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch) {
-        htmlContent = codeBlockMatch[1];
-        console.log('Extracted HTML from code block, length:', htmlContent.length);
+      const candidate = data.candidates[0];
+      if (candidate.content) {
+        console.log('Content found:', JSON.stringify(candidate.content, null, 2));
+        
+        if (candidate.content.parts && candidate.content.parts.length > 0) {
+          let htmlContent = candidate.content.parts[0].text;
+          console.log('Raw API response length:', htmlContent.length);
+          console.log('Raw API response preview:', htmlContent.substring(0, 500));
+          
+          // Extract HTML from markdown code blocks if present
+          const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
+          if (codeBlockMatch) {
+            htmlContent = codeBlockMatch[1];
+            console.log('Extracted HTML from code block, length:', htmlContent.length);
+          }
+          
+          // Validate the HTML contains multi-page structure
+          const pageCount = (htmlContent.match(/id="page-/g) || []).length;
+          console.log('Generated HTML page count:', pageCount);
+          
+          if (pageCount === 0) {
+            console.warn('Generated HTML appears to have no pages, this might be incorrect');
+          }
+          
+          console.log('Final HTML length:', htmlContent.length);
+          return htmlContent;
+        } else {
+          console.error('No parts found in candidate.content:', candidate.content);
+          throw new Error('No parts found in API response content');
+        }
+      } else {
+        console.error('No content found in candidate:', candidate);
+        throw new Error('No content found in API response candidate');
       }
-      
-      // Validate the HTML contains multi-page structure
-      const pageCount = (htmlContent.match(/id="page-/g) || []).length;
-      console.log('Generated HTML page count:', pageCount);
-      
-      if (pageCount === 0) {
-        console.warn('Generated HTML appears to have no pages, this might be incorrect');
-      }
-      
-      console.log('Final HTML length:', htmlContent.length);
-      return htmlContent;
     } else {
-      console.error('Invalid API response structure:', data);
-      throw new Error('Invalid API response format');
+      console.error('No candidates found in API response:', data);
+      throw new Error('No candidates found in API response');
     }
   } catch (error) {
     console.error('Error calling Gemini API for HTML:', error);
