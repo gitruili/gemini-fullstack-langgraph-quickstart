@@ -139,9 +139,8 @@ const generateBlueprint = async (content: string): Promise<string> => {
   }
 };
 
-// HTML/CSS generation function
-const generateHTML = async (content: string): Promise<string> => {
-  const blueprint = await generateBlueprint(content);
+// HTML/CSS generation function - now accepts blueprint as parameter
+const generateHTML = (blueprint: string, content: string): string => {
   const lines = blueprint.split('\n');
   
   // Parse blueprint to extract all page information
@@ -1052,7 +1051,18 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const handleGenerateHTML = async () => {
     console.log('HTML button clicked!'); // Debug log
     try {
-      const generatedHTML = await generateHTML(messageContent);
+      let blueprintToUse = blueprint;
+      
+      // If no blueprint exists, generate one first
+      if (!blueprintToUse) {
+        console.log('No existing blueprint, generating new one...'); // Debug log
+        blueprintToUse = await generateBlueprint(messageContent);
+        setBlueprint(blueprintToUse); // Store it for future use
+      } else {
+        console.log('Using existing blueprint'); // Debug log
+      }
+      
+      const generatedHTML = generateHTML(blueprintToUse, messageContent);
       console.log('Generated HTML:', generatedHTML); // Debug log
       setHtmlCode(generatedHTML);
       setShowHTML(true);
