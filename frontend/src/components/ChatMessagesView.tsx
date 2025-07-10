@@ -141,33 +141,103 @@ const generateBlueprint = async (content: string): Promise<string> => {
 
 // HTML/CSS generation function - now accepts blueprint as parameter
 const generateHTML = (blueprint: string, content: string): string => {
+  console.log('=== DEBUG: generateHTML called ===');
+  console.log('Blueprint:', blueprint);
+  console.log('Content length:', content.length);
+  
   const lines = blueprint.split('\n');
+  console.log('Blueprint lines:', lines.length);
   
   // Parse blueprint to extract all page information
   const pages: any[] = [];
   let currentPage: any = null;
   
   for (const line of lines) {
-    if (line.startsWith('信息图')) {
-      if (currentPage) pages.push(currentPage);
-      const pageInfo = line.match(/信息图 (\d+) \/ (\d+)/);
+    if (line.includes('信息图') || line.includes('Page') || line.includes('页面')) {
+      if (currentPage) {
+        console.log('Adding page:', currentPage);
+        pages.push(currentPage);
+      }
+      // More flexible parsing for different blueprint formats
+      const pageInfo = line.match(/(\d+)\s*\/\s*(\d+)/) || line.match(/(\d+)\s*of\s*(\d+)/i);
       currentPage = { 
         pageNum: pageInfo?.[1] || '1',
-        totalPages: pageInfo?.[2] || '1',
+        totalPages: pageInfo?.[2] || '3',
         title: '', 
         type: '', 
         content: [],
         rawContent: []
       };
-    } else if (line.startsWith('页面类型：')) {
-      if (currentPage) currentPage.type = line.replace('页面类型：', '').trim();
-    } else if (line.startsWith('页面标题：')) {
-      if (currentPage) currentPage.title = line.replace('页面标题：', '').trim().replace(/《|》/g, '');
+      
+      // Try to extract type from the same line
+      if (line.includes('封面') || line.toLowerCase().includes('hero')) {
+        currentPage.type = '封面页面';
+      } else if (line.includes('概览') || line.toLowerCase().includes('summary')) {
+        currentPage.type = '概览';
+      } else if (line.includes('对比') || line.toLowerCase().includes('comparison')) {
+        currentPage.type = '对比';
+      } else if (line.includes('数据') || line.toLowerCase().includes('data')) {
+        currentPage.type = '数据展示';
+      }
+      
+      console.log('Created new page:', currentPage);
+    } else if (line.includes('页面类型') || line.toLowerCase().includes('type')) {
+      if (currentPage) {
+        const typeMatch = line.split(/[:：]/)[1];
+        if (typeMatch) {
+          currentPage.type = typeMatch.trim();
+          console.log('Set page type:', currentPage.type);
+        }
+      }
+    } else if (line.includes('页面标题') || line.includes('标题') || line.toLowerCase().includes('title')) {
+      if (currentPage) {
+        const titleMatch = line.split(/[:：]/)[1];
+        if (titleMatch) {
+          currentPage.title = titleMatch.trim().replace(/《|》|"|'/g, '');
+          console.log('Set page title:', currentPage.title);
+        }
+      }
     } else if (line.trim() && currentPage) {
       currentPage.rawContent.push(line.trim());
     }
   }
-  if (currentPage) pages.push(currentPage);
+  
+  if (currentPage) {
+    console.log('Adding final page:', currentPage);
+    pages.push(currentPage);
+  }
+  
+  console.log('Total pages parsed:', pages.length);
+  
+  // If no pages were parsed, create default pages
+  if (pages.length === 0) {
+    console.log('No pages parsed, creating default pages');
+    const defaultTitle = content.split('.')[0]?.slice(0, 50) || 'AI 分析内容';
+    
+    pages.push({
+      pageNum: '1',
+      totalPages: '3',
+      title: defaultTitle,
+      type: '封面页面',
+      rawContent: []
+    });
+    
+    pages.push({
+      pageNum: '2', 
+      totalPages: '3',
+      title: '核心要点总览',
+      type: '概览',
+      rawContent: []
+    });
+    
+    pages.push({
+      pageNum: '3',
+      totalPages: '3', 
+      title: '详细分析',
+      type: '内容详情',
+      rawContent: []
+    });
+  }
   
   // Extract actual content for data
   const originalLines = content.split('\n').filter(line => line.trim());
@@ -176,7 +246,12 @@ const generateHTML = (blueprint: string, content: string): string => {
   const numbers = content.match(/\d+[%]?/g) || ['85', '92', '78', '94'];
   const firstSentence = content.split('.')[0] || pages[0]?.title || 'AI 分析内容';
   
-  return generateMultiPageHTML(pages, { listItems, numbers, firstSentence, originalContent: content });
+  console.log('Extracted data:', { listItems: listItems.length, numbers: numbers.length, firstSentence });
+  
+  const result = generateMultiPageHTML(pages, { listItems, numbers, firstSentence, originalContent: content });
+  console.log('Generated HTML length:', result.length);
+  
+  return result;
 };
 
 const generateMultiPageHTML = (pages: any[], data: any): string => {
