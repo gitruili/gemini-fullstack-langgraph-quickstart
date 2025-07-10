@@ -141,13 +141,20 @@ const generateBlueprint = async (content: string): Promise<string> => {
 
 // API call to generate HTML using Gemini
 const callGeminiAPIForHTML = async (blueprint: string, content: string): Promise<string> => {
+  console.log('=== callGeminiAPIForHTML called ===');
+  console.log('Blueprint length:', blueprint.length);
+  console.log('Content length:', content.length);
+  
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   
   if (!GEMINI_API_KEY) {
+    console.error('VITE_GEMINI_API_KEY is not set');
     throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
   }
 
   const prompt = `你是一个专业的前端开发工程师和UI设计师。请根据以下设计蓝图和原始内容，生成完整的HTML+CSS+JavaScript代码。
+
+重要：你必须严格按照设计蓝图的页面数量、布局、色彩、视觉元素来生成HTML代码。
 
 设计蓝图：
 ${blueprint}
@@ -156,20 +163,27 @@ ${blueprint}
 ${content}
 
 要求：
-1. 生成完整的HTML文档，包含DOCTYPE、head、body等完整结构
-2. 固定画布尺寸：448×597px，使用body { width: 448px; height: 597px; overflow: hidden; }
-3. 实现多页面导航系统，每页对应蓝图中的一个信息图页面
-4. 使用纯CSS和JavaScript，不依赖外部库
-5. 禁用外部图片，使用CSS渐变、emoji图标、SVG等代替
-6. 包含页面指示器显示当前页数（如：1/3）
-7. 支持键盘导航（左右箭头键）和按钮导航
-8. 每页都要有完整的视觉设计和内容布局
-9. 使用现代CSS技术：Grid、Flexbox、渐变、动画等
-10. 色彩搭配要专业美观，符合设计蓝图的要求
-11. 字体使用系统字体栈：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
-12. 确保在448×597px画布内完美渲染
+1. 严格按照设计蓝图中的页面数量（如8页）来生成HTML
+2. 每页必须对应蓝图中的具体设计：标题、布局、色彩、视觉元素
+3. 固定画布尺寸：448×597px，使用body { width: 448px; height: 597px; overflow: hidden; }
+4. 实现多页面导航系统，每页对应蓝图中的一个信息图页面
+5. 使用纯CSS和JavaScript，不依赖外部库
+6. 禁用外部图片，使用CSS渐变、emoji图标、SVG等代替
+7. 包含页面指示器显示当前页数（如：1/8）
+8. 支持键盘导航（左右箭头键）和按钮导航
+9. 每页都要有完整的视觉设计和内容布局，严格按照蓝图的"背景"、"色彩"、"视觉元素"来实现
+10. 使用现代CSS技术：Grid、Flexbox、渐变、动画等
+11. 色彩搭配要严格按照蓝图的配色方案
+12. 字体使用系统字体栈：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+13. 确保在448×597px画布内完美渲染
+14. 必须包含所有页面，不能遗漏任何一页
 
-请生成完整的HTML代码，包含所有CSS样式和JavaScript功能。代码要能够直接在浏览器中运行。`;
+请生成完整的HTML代码，包含所有CSS样式和JavaScript功能。代码要能够直接在浏览器中运行。
+
+重要提醒：请严格按照蓝图中的页面数量来生成，如果蓝图中有8页，就必须生成8页的HTML代码。`;
+
+  console.log('Sending request to Gemini API...');
+  console.log('Prompt length:', prompt.length);
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -192,29 +206,48 @@ ${content}
       })
     });
 
+    console.log('API response status:', response.status);
+    console.log('API response ok:', response.ok);
+
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API error response:', errorText);
+      throw new Error(`API request failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('API response data keys:', Object.keys(data));
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       let htmlContent = data.candidates[0].content.parts[0].text;
+      console.log('Raw API response length:', htmlContent.length);
+      console.log('Raw API response preview:', htmlContent.substring(0, 500));
       
       // Extract HTML from markdown code blocks if present
       const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
       if (codeBlockMatch) {
         htmlContent = codeBlockMatch[1];
+        console.log('Extracted HTML from code block, length:', htmlContent.length);
       }
       
+      // Validate the HTML contains multi-page structure
+      const pageCount = (htmlContent.match(/id="page-/g) || []).length;
+      console.log('Generated HTML page count:', pageCount);
+      
+      if (pageCount === 0) {
+        console.warn('Generated HTML appears to have no pages, this might be incorrect');
+      }
+      
+      console.log('Final HTML length:', htmlContent.length);
       return htmlContent;
     } else {
+      console.error('Invalid API response structure:', data);
       throw new Error('Invalid API response format');
     }
   } catch (error) {
     console.error('Error calling Gemini API for HTML:', error);
     // Fallback to the simple HTML generation
-    return generateFallbackHTML(content);
+    throw error; // Re-throw to handle in calling function
   }
 };
 
@@ -223,15 +256,31 @@ const generateHTML = async (blueprint: string, content: string): Promise<string>
   console.log('=== DEBUG: generateHTML called ===');
   console.log('Blueprint length:', blueprint.length);
   console.log('Content length:', content.length);
+  console.log('Blueprint preview:', blueprint.substring(0, 200) + '...');
   
   try {
+    console.log('Calling Gemini API for HTML generation...');
     const generatedHTML = await callGeminiAPIForHTML(blueprint, content);
-    console.log('Generated HTML from API, length:', generatedHTML.length);
+    console.log('Successfully generated HTML from API, length:', generatedHTML.length);
+    
+    // Additional validation
+    if (generatedHTML.length < 1000) {
+      console.warn('Generated HTML seems very short, might be incomplete');
+    }
+    
+    if (!generatedHTML.includes('<!DOCTYPE html>') && !generatedHTML.includes('<html')) {
+      console.warn('Generated HTML might not be a complete HTML document');
+    }
+    
     return generatedHTML;
   } catch (error) {
     console.error('Error generating HTML via API:', error);
-    // Fallback to original hardcoded generation
-    return generateFallbackHTML(content);
+    console.log('Falling back to generateFallbackHTML');
+    
+    // Fallback to simple HTML generation
+    const fallbackHTML = generateFallbackHTML(content);
+    console.log('Fallback HTML generated, length:', fallbackHTML.length);
+    return fallbackHTML;
   }
 };
 
