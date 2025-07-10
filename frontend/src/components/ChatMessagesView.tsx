@@ -151,32 +151,29 @@ const callGeminiAPIForHTML = async (blueprint: string): Promise<string> => {
     throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
   }
 
-  const prompt = `你是一个专业的前端开发工程师和UI设计师。请根据以下设计蓝图和原始内容，生成完整的HTML+CSS+JavaScript代码。
+  const prompt = `你是一个专业的前端开发工程师和UI设计师。请根据以下完整的设计蓝图生成HTML+CSS+JavaScript代码。
 
-重要：你必须严格按照设计蓝图的页面数量、布局、色彩、视觉元素来生成HTML代码。
+蓝图已包含所有设计规范和页面内容，请严格按照执行。
 
 设计蓝图：
 ${blueprint}
 
 要求：
-1. 严格按照设计蓝图中的页面数量（如8页）来生成HTML
+1. 严格按照蓝图中的页面数量来生成HTML（如8页就生成8页）
 2. 每页必须对应蓝图中的具体设计：标题、布局、色彩、视觉元素
-3. 固定画布尺寸：448×597px，使用body { width: 448px; height: 597px; overflow: hidden; }
-4. 实现多页面导航系统，每页对应蓝图中的一个信息图页面
-5. 使用纯CSS和JavaScript，不依赖外部库
-6. 禁用外部图片，使用CSS渐变、emoji图标、SVG等代替
-7. 包含页面指示器显示当前页数（如：1/8）
-8. 支持键盘导航（左右箭头键）和按钮导航
-9. 每页都要有完整的视觉设计和内容布局，严格按照蓝图的"背景"、"色彩"、"视觉元素"来实现
+3. 使用蓝图中提供的所有内容和数据
+4. 固定画布尺寸：448×597px，body { width: 448px; height: 597px; overflow: hidden; }
+5. 实现多页面导航系统，支持键盘（左右箭头）和按钮导航
+6. 使用纯CSS和JavaScript，不依赖外部库
+7. 禁用外部图片，使用CSS渐变、emoji图标、SVG等
+8. 包含页面指示器显示当前页数
+9. 严格按照蓝图的"背景"、"色彩"、"视觉元素"规范实现
 10. 使用现代CSS技术：Grid、Flexbox、渐变、动画等
-11. 色彩搭配要严格按照蓝图的配色方案
-12. 字体使用系统字体栈：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
-13. 确保在448×597px画布内完美渲染
-14. 必须包含所有页面，不能遗漏任何一页
+11. 字体：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+12. 确保完美适配448×597px画布
+13. 生成完整可运行的HTML文档
 
-请生成完整的HTML代码，包含所有CSS样式和JavaScript功能。代码要能够直接在浏览器中运行。
-
-重要提醒：请严格按照蓝图中的页面数量来生成，如果蓝图中有8页，就必须生成8页的HTML代码。`;
+重要：蓝图中已包含所有必要的设计和内容信息，请严格按照执行，不要遗漏任何页面。`;
 
   console.log('Sending request to Gemini API...');
   console.log('Prompt length:', prompt.length);
@@ -272,8 +269,12 @@ const generateHTML = async (blueprint: string): Promise<string> => {
   } catch (error) {
     console.error('Error generating HTML via API:', error);
     console.log('Falling back to generateFallbackHTML');
-    // Use a fallback HTML if API fails
-    return generateFallbackHTML(blueprint);
+    
+    // Extract some content from blueprint for fallback
+    const fallbackContent = blueprint.substring(0, 1000);
+    const fallbackHTML = generateFallbackHTML(fallbackContent);
+    console.log('Fallback HTML generated, length:', fallbackHTML.length);
+    return fallbackHTML;
   }
 };
 
