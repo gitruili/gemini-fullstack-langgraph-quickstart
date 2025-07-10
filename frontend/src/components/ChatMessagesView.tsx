@@ -139,119 +139,100 @@ const generateBlueprint = async (content: string): Promise<string> => {
   }
 };
 
-// HTML/CSS generation function - now accepts blueprint as parameter
-const generateHTML = (blueprint: string, content: string): string => {
+// API call to generate HTML using Gemini
+const callGeminiAPIForHTML = async (blueprint: string, content: string): Promise<string> => {
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!GEMINI_API_KEY) {
+    throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
+  }
+
+  const prompt = `你是一个专业的前端开发工程师和UI设计师。请根据以下设计蓝图和原始内容，生成完整的HTML+CSS+JavaScript代码。
+
+设计蓝图：
+${blueprint}
+
+原始内容：
+${content}
+
+要求：
+1. 生成完整的HTML文档，包含DOCTYPE、head、body等完整结构
+2. 固定画布尺寸：448×597px，使用body { width: 448px; height: 597px; overflow: hidden; }
+3. 实现多页面导航系统，每页对应蓝图中的一个信息图页面
+4. 使用纯CSS和JavaScript，不依赖外部库
+5. 禁用外部图片，使用CSS渐变、emoji图标、SVG等代替
+6. 包含页面指示器显示当前页数（如：1/3）
+7. 支持键盘导航（左右箭头键）和按钮导航
+8. 每页都要有完整的视觉设计和内容布局
+9. 使用现代CSS技术：Grid、Flexbox、渐变、动画等
+10. 色彩搭配要专业美观，符合设计蓝图的要求
+11. 字体使用系统字体栈：-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+12. 确保在448×597px画布内完美渲染
+
+请生成完整的HTML代码，包含所有CSS样式和JavaScript功能。代码要能够直接在浏览器中运行。`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      let htmlContent = data.candidates[0].content.parts[0].text;
+      
+      // Extract HTML from markdown code blocks if present
+      const codeBlockMatch = htmlContent.match(/```html\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        htmlContent = codeBlockMatch[1];
+      }
+      
+      return htmlContent;
+    } else {
+      throw new Error('Invalid API response format');
+    }
+  } catch (error) {
+    console.error('Error calling Gemini API for HTML:', error);
+    // Fallback to the simple HTML generation
+    return generateFallbackHTML(content);
+  }
+};
+
+// Updated HTML generation function - now uses Gemini API
+const generateHTML = async (blueprint: string, content: string): Promise<string> => {
   console.log('=== DEBUG: generateHTML called ===');
-  console.log('Blueprint:', blueprint);
+  console.log('Blueprint length:', blueprint.length);
   console.log('Content length:', content.length);
   
-  const lines = blueprint.split('\n');
-  console.log('Blueprint lines:', lines.length);
-  
-  // Parse blueprint to extract all page information
-  const pages: any[] = [];
-  let currentPage: any = null;
-  
-  for (const line of lines) {
-    if (line.includes('信息图') || line.includes('Page') || line.includes('页面')) {
-      if (currentPage) {
-        console.log('Adding page:', currentPage);
-        pages.push(currentPage);
-      }
-      // More flexible parsing for different blueprint formats
-      const pageInfo = line.match(/(\d+)\s*\/\s*(\d+)/) || line.match(/(\d+)\s*of\s*(\d+)/i);
-      currentPage = { 
-        pageNum: pageInfo?.[1] || '1',
-        totalPages: pageInfo?.[2] || '3',
-        title: '', 
-        type: '', 
-        content: [],
-        rawContent: []
-      };
-      
-      // Try to extract type from the same line
-      if (line.includes('封面') || line.toLowerCase().includes('hero')) {
-        currentPage.type = '封面页面';
-      } else if (line.includes('概览') || line.toLowerCase().includes('summary')) {
-        currentPage.type = '概览';
-      } else if (line.includes('对比') || line.toLowerCase().includes('comparison')) {
-        currentPage.type = '对比';
-      } else if (line.includes('数据') || line.toLowerCase().includes('data')) {
-        currentPage.type = '数据展示';
-      }
-      
-      console.log('Created new page:', currentPage);
-    } else if (line.includes('页面类型') || line.toLowerCase().includes('type')) {
-      if (currentPage) {
-        const typeMatch = line.split(/[:：]/)[1];
-        if (typeMatch) {
-          currentPage.type = typeMatch.trim();
-          console.log('Set page type:', currentPage.type);
-        }
-      }
-    } else if (line.includes('页面标题') || line.includes('标题') || line.toLowerCase().includes('title')) {
-      if (currentPage) {
-        const titleMatch = line.split(/[:：]/)[1];
-        if (titleMatch) {
-          currentPage.title = titleMatch.trim().replace(/《|》|"|'/g, '');
-          console.log('Set page title:', currentPage.title);
-        }
-      }
-    } else if (line.trim() && currentPage) {
-      currentPage.rawContent.push(line.trim());
-    }
+  try {
+    const generatedHTML = await callGeminiAPIForHTML(blueprint, content);
+    console.log('Generated HTML from API, length:', generatedHTML.length);
+    return generatedHTML;
+  } catch (error) {
+    console.error('Error generating HTML via API:', error);
+    // Fallback to original hardcoded generation
+    return generateFallbackHTML(content);
   }
-  
-  if (currentPage) {
-    console.log('Adding final page:', currentPage);
-    pages.push(currentPage);
-  }
-  
-  console.log('Total pages parsed:', pages.length);
-  
-  // If no pages were parsed, create default pages
-  if (pages.length === 0) {
-    console.log('No pages parsed, creating default pages');
-    const defaultTitle = content.split('.')[0]?.slice(0, 50) || 'AI 分析内容';
-    
-    pages.push({
-      pageNum: '1',
-      totalPages: '3',
-      title: defaultTitle,
-      type: '封面页面',
-      rawContent: []
-    });
-    
-    pages.push({
-      pageNum: '2', 
-      totalPages: '3',
-      title: '核心要点总览',
-      type: '概览',
-      rawContent: []
-    });
-    
-    pages.push({
-      pageNum: '3',
-      totalPages: '3', 
-      title: '详细分析',
-      type: '内容详情',
-      rawContent: []
-    });
-  }
-  
-  // Extract actual content for data
-  const originalLines = content.split('\n').filter(line => line.trim());
-  const listItems = originalLines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
-    .slice(0, 12).map(item => item.replace(/^[-*\d.]\s*/, ''));
-  const numbers = content.match(/\d+[%]?/g) || ['85', '92', '78', '94'];
-  const firstSentence = content.split('.')[0] || pages[0]?.title || 'AI 分析内容';
-  
-  console.log('Extracted data:', { listItems: listItems.length, numbers: numbers.length, firstSentence });
-  
-  const result = generateMultiPageHTML(pages, { listItems, numbers, firstSentence, originalContent: content });
-  console.log('Generated HTML length:', result.length);
-  
-  return result;
 };
 
 const generateMultiPageHTML = (pages: any[], data: any): string => {
@@ -1137,7 +1118,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         console.log('Using existing blueprint'); // Debug log
       }
       
-      const generatedHTML = generateHTML(blueprintToUse, messageContent);
+      const generatedHTML = await generateHTML(blueprintToUse, messageContent);
       console.log('Generated HTML:', generatedHTML); // Debug log
       setHtmlCode(generatedHTML);
       setShowHTML(true);
