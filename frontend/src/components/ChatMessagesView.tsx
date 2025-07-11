@@ -334,136 +334,6 @@ const generateHTML = async (blueprint: string): Promise<string> => {
   }
 };
 
-// API call to audit and fix HTML using GoogleGenAI
-const auditAndFixHTML = async (htmlContent: string): Promise<string> => {
-  console.log('=== auditAndFixHTML called ===');
-  console.log('HTML content length:', htmlContent.length);
-  
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-  
-  if (!GEMINI_API_KEY) {
-    console.error('VITE_GEMINI_API_KEY is not set');
-    throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
-  }
-
-  const prompt = `你是一个质控智能体，专门负责检查和修复HTML代码中的布局溢出问题。
-
-请分析以下HTML代码，检查是否存在内容溢出画布边界的问题：
-
-画布规格：
-- 固定尺寸：448px × 597px
-- 所有内容必须在此范围内完整显示
-- 不允许水平或垂直滚动
-
-检查要点：
-1. 文字内容是否会超出边界
-2. 图片、图标尺寸是否合适
-3. 页面布局是否在指定尺寸内
-4. CSS样式是否可能导致溢出
-5. 多页面切换时每页是否都在边界内
-
-如果发现溢出问题，请修复：
-- 调整字体大小
-- 优化布局间距
-- 缩短过长文本
-- 调整元素尺寸
-- 优化CSS样式
-
-请返回修复后的完整HTML代码，确保所有内容都能在448px × 597px的画布内完美显示。
-
-原始HTML代码：
-${htmlContent}`;
-
-  console.log('Sending HTML audit request to GoogleGenAI API...');
-
-  try {
-    const ai = new GoogleGenAI({
-      apiKey: GEMINI_API_KEY,
-    });
-    
-    const config = {
-      thinkingConfig: {
-        thinkingBudget: -1,
-      },
-      responseMimeType: 'text/plain',
-      systemInstruction: [
-        {
-          text: `你是一个专业的HTML质控智能体，专门负责检查和修复HTML代码中的布局溢出问题。你需要确保所有内容都能在指定的画布尺寸内完美显示。`,
-        }
-      ],
-    };
-    
-    const model = 'gemini-2.5-pro';
-    const contents = [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ];
-
-    console.log('Generating audited HTML...');
-    const response = await ai.models.generateContentStream({
-      model,
-      config,
-      contents,
-    });
-
-    let auditedHtmlContent = '';
-    for await (const chunk of response) {
-      if (chunk.text) {
-        auditedHtmlContent += chunk.text;
-      }
-    }
-
-    console.log('Raw audit response length:', auditedHtmlContent.length);
-    console.log('Raw audit response preview:', auditedHtmlContent.substring(0, 500));
-    
-    // Extract HTML from markdown code blocks if present
-    const codeBlockMatch = auditedHtmlContent.match(/```html\s*([\s\S]*?)\s*```/);
-    if (codeBlockMatch) {
-      auditedHtmlContent = codeBlockMatch[1];
-      console.log('Extracted HTML from code block, length:', auditedHtmlContent.length);
-    }
-    
-    // Additional extraction patterns for different formats
-    if (!auditedHtmlContent.includes('<!DOCTYPE html>')) {
-      const htmlStartPatterns = [
-        /```html\s*\n([\s\S]*)/,
-        /```\s*\n(<!DOCTYPE html[\s\S]*)/,
-        /(<!DOCTYPE html[\s\S]*)/
-      ];
-      
-      for (const pattern of htmlStartPatterns) {
-        const match = auditedHtmlContent.match(pattern);
-        if (match) {
-          auditedHtmlContent = match[1];
-          console.log('Extracted HTML using pattern, length:', auditedHtmlContent.length);
-          break;
-        }
-      }
-    }
-    
-    // Ensure we have a complete HTML document
-    if (!auditedHtmlContent.includes('<!DOCTYPE html>')) {
-      console.warn('Audited HTML content does not appear to be a complete document');
-      console.log('Content starts with:', auditedHtmlContent.substring(0, 200));
-    }
-    
-    console.log('Final audited HTML length:', auditedHtmlContent.length);
-    console.log('Audited HTML validation - DOCTYPE:', auditedHtmlContent.includes('<!DOCTYPE html>'));
-    console.log('Audited HTML validation - closing tag:', auditedHtmlContent.includes('</html>'));
-    
-    return auditedHtmlContent;
-  } catch (error) {
-    console.error('Error calling GoogleGenAI API for HTML audit:', error);
-    throw error;
-  }
-};
-
 const generateFallbackHTML = (content: string): string => {
   const lines = content.split('\n').filter(line => line.trim());
   const listItems = lines.filter(line => line.match(/^[-*]\s/) || line.match(/^\d+\.\s/))
@@ -730,17 +600,16 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const [isGeneratingHTML, setIsGeneratingHTML] = useState(false);
   const [generatedHTML, setGeneratedHTML] = useState<string | null>(null);
   const [htmlError, setHtmlError] = useState<string | null>(null);
-  const [isAuditingHTML, setIsAuditingHTML] = useState(false);
-  const [auditedHTML, setAuditedHTML] = useState<string | null>(null);
-  const [auditError, setAuditError] = useState<string | null>(null);
   const [isGeneratingPNG, setIsGeneratingPNG] = useState(false);
   const [pngError, setPngError] = useState<string | null>(null);
+  const [generatedPNGs, setGeneratedPNGs] = useState<string[]>([]);
+  const [isAuditingPNG, setIsAuditingPNG] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const htmlContainerRef = useRef<HTMLDivElement>(null);
   
   // UI state variables
   const [showBlueprint, setShowBlueprint] = useState(false);
   const [showHTML, setShowHTML] = useState(false);
-  const [showAuditedHTML, setShowAuditedHTML] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   // Determine which activity events to show and if it's for a live loading message
@@ -808,37 +677,8 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
     }
   };
 
-  const handleAuditHTML = async () => {
-    console.log('Audit HTML button clicked!'); // Debug log
-    
-    if (!generatedHTML) {
-      alert('请先生成HTML代码');
-      return;
-    }
-
-    setIsAuditingHTML(true);
-    setAuditError(null);
-
-    try {
-      console.log('Auditing HTML...'); // Debug log
-      const auditedHtmlContent = await auditAndFixHTML(generatedHTML);
-      console.log('Audited HTML:', auditedHtmlContent); // Debug log
-      setAuditedHTML(auditedHtmlContent);
-      setShowAuditedHTML(true);
-      console.log('Audit HTML state updated, showAuditedHTML:', true); // Debug log
-    } catch (error) {
-      console.error('Error auditing HTML:', error);
-      setAuditError('HTML 审核失败: ' + (error instanceof Error ? error.message : '未知错误'));
-    } finally {
-      setIsAuditingHTML(false);
-    }
-  };
-
   const handleGeneratePNG = async () => {
-    // Use audited HTML if available, otherwise use generated HTML
-    const htmlToUse = auditedHTML || generatedHTML;
-    
-    if (!htmlToUse) {
+    if (!generatedHTML) {
       alert('请先生成HTML代码');
       return;
     }
@@ -848,7 +688,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
 
     try {
       console.log('开始生成PNG图片...');
-      console.log('使用HTML:', auditedHTML ? '审核后的HTML' : '原始HTML');
       
       // Create a hidden iframe to properly render the HTML with all styles
       const iframe = document.createElement('iframe');
@@ -864,7 +703,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       
       // Write the HTML content to iframe
       iframe.contentDocument?.open();
-      iframe.contentDocument?.write(htmlToUse);
+      iframe.contentDocument?.write(generatedHTML);
       iframe.contentDocument?.close();
       
       // Wait for the iframe to fully load
@@ -886,6 +725,9 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page');
       console.log(`发现 ${pages.length} 个页面元素`);
       
+      // Array to store PNG data URLs for audit
+      const pngDataUrls: string[] = [];
+      
       if (pages.length === 0) {
         console.log('未找到页面元素，尝试截取整个body');
         // If no specific pages found, capture the whole body
@@ -900,6 +742,8 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           pixelRatio: 2,
           backgroundColor: '#ffffff',
         });
+        
+        pngDataUrls.push(dataUrl);
         
         // Single page download
         const link = document.createElement('a');
@@ -948,6 +792,8 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
               backgroundColor: '#ffffff',
             });
             
+            pngDataUrls.push(dataUrl);
+            
             // Convert data URL to blob
             const response = await fetch(dataUrl);
             const blob = await response.blob();
@@ -973,6 +819,9 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         console.log(`${pages.length} 页PNG打包下载成功`);
       }
       
+      // Store PNG data URLs for audit
+      setGeneratedPNGs(pngDataUrls);
+      
       // Clean up
       document.body.removeChild(iframe);
       
@@ -987,6 +836,123 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       }
     } finally {
       setIsGeneratingPNG(false);
+    }
+  };
+
+  const handleAuditAndFixPNG = async () => {
+    if (!generatedHTML || generatedPNGs.length === 0) {
+      alert('请先生成HTML代码和PNG图片');
+      return;
+    }
+
+    setIsAuditingPNG(true);
+    setAuditError(null);
+
+    try {
+      console.log('开始审计PNG图片...');
+      
+      const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!GEMINI_API_KEY) {
+        throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
+      }
+
+      const prompt = `你是一个质控智能体，请分析以下生成的PNG图片和HTML代码。
+
+任务：
+1. 检查PNG图片中的内容是否有溢出448px × 597px的画布边界
+2. 识别文字、图标或其他元素是否被裁切或超出边界
+3. 如果发现溢出问题，修复提供的HTML代码
+4. 确保修复后的HTML在448px × 597px的固定尺寸内完美显示
+
+修复要求：
+- 调整字体大小、间距、边距
+- 优化布局结构，确保内容适配画布
+- 保持设计美观性的同时确保完整显示
+- 使用响应式设计技巧适配固定尺寸
+
+请仔细分析图片，如果发现溢出问题，请提供修复后的完整HTML代码。如果没有发现问题，请回复"无需修复"。
+
+当前HTML代码：
+${generatedHTML}
+
+PNG图片数量：${generatedPNGs.length}张
+画布尺寸：448px × 597px`;
+
+      const ai = new GoogleGenAI({
+        apiKey: GEMINI_API_KEY,
+      });
+      
+      const config = {
+        thinkingConfig: {
+          thinkingBudget: -1,
+        },
+        responseMimeType: 'text/plain',
+      };
+      
+      const model = 'gemini-2.5-pro';
+      
+      // Prepare contents with text and images
+      const parts: any[] = [
+        { text: prompt } as any
+      ];
+      
+      // Add PNG images as inline data
+      for (let i = 0; i < generatedPNGs.length; i++) {
+        parts.push({
+          inlineData: {
+            mimeType: 'image/png',
+            data: generatedPNGs[i].replace(/^data:image\/png;base64,/, '')
+          }
+        } as any);
+      }
+      
+      const contents = [
+        {
+          role: 'user',
+          parts: parts,
+        },
+      ];
+
+      console.log('发送审计请求到GoogleGenAI...');
+      const response = await ai.models.generateContentStream({
+        model,
+        config,
+        contents,
+      });
+      
+      let auditResult = '';
+      for await (const chunk of response) {
+        if (chunk.text) {
+          auditResult += chunk.text;
+        }
+      }
+      
+      console.log('审计结果:', auditResult);
+      
+      if (auditResult.includes('无需修复') || auditResult.includes('No fixes needed')) {
+        alert('✅ 审计完成：PNG图片无溢出问题，无需修复');
+      } else {
+        // Extract HTML from the response
+        const htmlMatch = auditResult.match(/```html\s*([\s\S]*?)\s*```/) || 
+                          auditResult.match(/(<!DOCTYPE html[\s\S]*<\/html>)/);
+        
+        if (htmlMatch) {
+          const fixedHTML = htmlMatch[1];
+          setGeneratedHTML(fixedHTML);
+          alert('🔧 审计完成：发现溢出问题，已自动修复HTML代码。请重新生成PNG查看效果。');
+          console.log('HTML已更新，长度:', fixedHTML.length);
+        } else {
+          // If no HTML found, show the audit result
+          alert('⚠️ 审计完成：' + auditResult.substring(0, 200) + '...');
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error auditing PNG:', error);
+      setAuditError('审计失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    } finally {
+      setIsAuditingPNG(false);
     }
   };
 
@@ -1050,35 +1016,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           </div>
         </div>
       )}
-
-      {showAuditedHTML && (
-        <div className="mt-4 p-6 bg-yellow-900/20 rounded-lg border-2 border-yellow-500/30 shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-yellow-300 flex items-center gap-2">
-              🔍 审核后的HTML代码
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAuditedHTML(false)}
-              className="text-yellow-400 hover:text-yellow-200 hover:bg-yellow-800/30"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="bg-neutral-800/50 p-4 rounded-md max-h-96 overflow-y-auto">
-            <pre className="text-sm text-yellow-100 whitespace-pre-wrap font-mono leading-relaxed">
-              {auditedHTML || 'HTML 审核中...'}
-            </pre>
-          </div>
-        </div>
-      )}
       
-      {showPreview && (auditedHTML || generatedHTML) && (
+      {showPreview && generatedHTML && (
         <div className="mt-4 p-6 bg-purple-900/20 rounded-lg border-2 border-purple-500/30 shadow-lg">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-purple-300 flex items-center gap-2">
-              👀 HTML预览 {auditedHTML && <span className="text-sm text-yellow-300">(审核后)</span>}
+              👀 HTML预览
             </h3>
             <Button
               variant="ghost"
@@ -1090,40 +1033,21 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
             </Button>
           </div>
           <div className="bg-neutral-800/50 p-4 rounded-md">
-                          <iframe
-                srcDoc={auditedHTML || generatedHTML || ''}
-                style={{
-                  width: '448px',
-                  height: '597px',
-                  border: '1px solid #666',
-                  borderRadius: '4px',
-                  backgroundColor: '#ffffff'
-                }}
-                title="HTML Preview"
-              />
+            <iframe
+              srcDoc={generatedHTML}
+              style={{
+                width: '448px',
+                height: '597px',
+                border: '1px solid #666',
+                borderRadius: '4px',
+                backgroundColor: '#ffffff'
+              }}
+              title="HTML Preview"
+            />
           </div>
         </div>
       )}
       
-      {auditError && (
-        <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-red-300 flex items-center gap-2">
-              ❌ HTML审核错误
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setAuditError(null)}
-              className="text-red-400 hover:text-red-200 hover:bg-red-800/30"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-red-200 mt-2">{auditError}</p>
-        </div>
-      )}
-
       {pngError && (
         <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
           <div className="flex justify-between items-center">
@@ -1140,6 +1064,25 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
             </Button>
           </div>
           <p className="text-red-200 mt-2">{pngError}</p>
+        </div>
+      )}
+      
+      {auditError && (
+        <div className="mt-4 p-4 bg-red-900/20 rounded-lg border-2 border-red-500/30 shadow-lg">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-red-300 flex items-center gap-2">
+              ❌ 审计错误
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAuditError(null)}
+              className="text-red-400 hover:text-red-200 hover:bg-red-800/30"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-red-200 mt-2">{auditError}</p>
         </div>
       )}
       
@@ -1181,17 +1124,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         <Button
           variant="outline"
           size="sm"
-          className="bg-yellow-700 hover:bg-yellow-600 text-yellow-100 border-yellow-500"
-          onClick={handleAuditHTML}
-          disabled={!generatedHTML || isAuditingHTML}
-        >
-          {showAuditedHTML ? "Hide Audit" : isAuditingHTML ? "审核中..." : "Audit HTML"}
-          <FileText className="ml-1 h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
           className="bg-purple-700 hover:bg-purple-600 text-purple-100 border-purple-500"
           onClick={() => setShowPreview(!showPreview)}
           disabled={!generatedHTML}
@@ -1208,7 +1140,18 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           className="text-orange-400 border-orange-400 hover:bg-orange-400/10 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
-          {isGeneratingPNG ? '生成PNG中...' : auditedHTML ? '生成PNG图片 (审核后)' : '生成PNG图片'}
+          {isGeneratingPNG ? '生成PNG中...' : '生成PNG图片'}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAuditAndFixPNG}
+          disabled={!generatedHTML || generatedPNGs.length === 0 || isAuditingPNG}
+          className="text-yellow-400 border-yellow-400 hover:bg-yellow-400/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          {isAuditingPNG ? '审计中...' : '审计PNG'}
         </Button>
       </div>
     </div>
