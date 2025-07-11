@@ -17,7 +17,7 @@ import JSZip from 'jszip';
 import { GoogleGenAI } from '@google/genai';
 
 // Blueprint generation function
-// API call to generate blueprint using Gemini
+// API call to generate blueprint using GoogleGenAI
 const callGeminiAPI = async (content: string): Promise<string> => {
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   
@@ -56,39 +56,45 @@ ${content}
 请根据内容的实际特点和信息量来确定页面数量和类型。`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        }
-      })
+    const ai = new GoogleGenAI({
+      apiKey: GEMINI_API_KEY,
     });
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      return data.candidates[0].content.parts[0].text;
-    } else {
-      throw new Error('Invalid API response format');
+    const config = {
+      thinkingConfig: {
+        thinkingBudget: -1,
+      },
+      responseMimeType: 'text/plain',
+    };
+    
+    const model = 'gemini-2.5-pro';
+    const contents = [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ];
+
+    const response = await ai.models.generateContentStream({
+      model,
+      config,
+      contents,
+    });
+    
+    let blueprintContent = '';
+    for await (const chunk of response) {
+      if (chunk.text) {
+        blueprintContent += chunk.text;
+      }
     }
+    
+    return blueprintContent;
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    console.error('Error calling GoogleGenAI API:', error);
     // Fallback to a basic blueprint if API fails
     return generateFallbackBlueprint(content);
   }
