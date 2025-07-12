@@ -12,11 +12,9 @@ import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
-import * as htmlToImage from 'html-to-image';
-import JSZip from 'jszip';
-import { GoogleGenAI } from '@google/genai';
 import { BlueprintResult, generateBlueprint } from '@/lib/blueprintGenerator';
 import { generateHTML, generateFallbackHTML } from '@/lib/htmlGenerator';
+import { generatePNG, auditAndFixPNG, PngGenerationCallbacks, PngAuditCallbacks } from '@/lib/pngGenerator';
 
 // Markdown component props type from former ReportView
 type MdComponentProps = {
@@ -308,282 +306,23 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   };
 
   const handleGeneratePNG = async () => {
-    if (!generatedHTML) {
-      alert('请先生成HTML代码');
-      return;
-    }
-
-    setIsGeneratingPNG(true);
-    setPngError(null);
-
-    try {
-      console.log('开始生成PNG图片...');
-      
-      // Create a hidden iframe to properly render the HTML with all styles
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.left = '-9999px';
-      iframe.style.top = '-9999px';
-      iframe.style.width = '448px';
-      iframe.style.height = '597px';
-      iframe.style.border = 'none';
-      iframe.style.background = '#ffffff';
-      
-      document.body.appendChild(iframe);
-      
-      // Write the HTML content to iframe
-      iframe.contentDocument?.open();
-      iframe.contentDocument?.write(generatedHTML);
-      iframe.contentDocument?.close();
-      
-      // Wait for the iframe to fully load
-      await new Promise((resolve) => {
-        iframe.onload = resolve;
-        // Fallback timeout
-        setTimeout(resolve, 3000);
-      });
-      
-      // Additional wait for fonts and styles to load
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const iframeBody = iframe.contentDocument?.body;
-      if (!iframeBody) {
-        throw new Error('无法访问iframe内容');
-      }
-      
-      // Find all pages in the HTML
-      const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page');
-      console.log(`发现 ${pages.length} 个页面元素`);
-      
-      // Array to store PNG data URLs for audit
-      const pngDataUrls: string[] = [];
-      
-      if (pages.length === 0) {
-        console.log('未找到页面元素，尝试截取整个body');
-        // If no specific pages found, capture the whole body
-        const dataUrl = await htmlToImage.toPng(iframeBody, {
-          width: 448,
-          height: 597,
-          style: {
-            transform: 'scale(1)',
-            transformOrigin: 'top left',
-          },
-          quality: 1.0,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-        });
-        
-        pngDataUrls.push(dataUrl);
-        
-        // Single page download
-        const link = document.createElement('a');
-        link.download = `infographic-${new Date().getTime()}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        console.log('单页PNG生成成功');
-      } else {
-        // Multiple pages - create ZIP
-        const zip = new JSZip();
-        
-        for (let i = 0; i < pages.length; i++) {
-          const page = pages[i] as HTMLElement;
-          console.log(`正在截取第 ${i + 1} 页...`);
-          
-          // Make sure only this page is visible
-          pages.forEach((p, index) => {
-            const element = p as HTMLElement;
-            if (index === i) {
-              element.style.display = 'flex';
-              element.style.opacity = '1';
-              element.style.visibility = 'visible';
-            } else {
-              element.style.display = 'none';
-              element.style.opacity = '0';
-              element.style.visibility = 'hidden';
-            }
-          });
-          
-          // Wait a bit for the visibility changes to take effect
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          try {
-            const dataUrl = await htmlToImage.toPng(page, {
-              width: 448,
-              height: 597,
-              style: {
-                transform: 'scale(1)',
-                transformOrigin: 'top left',
-              },
-              quality: 1.0,
-              pixelRatio: 2,
-              backgroundColor: '#ffffff',
-            });
-            
-            pngDataUrls.push(dataUrl);
-            
-            // Convert data URL to blob
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            
-            zip.file(`page-${i + 1}.png`, blob);
-            console.log(`第 ${i + 1} 页截取成功`);
-          } catch (pageError) {
-            console.error(`第 ${i + 1} 页截取失败:`, pageError);
-            setPngError(`第 ${i + 1} 页截取失败: ${pageError instanceof Error ? pageError.message : '未知错误'}`);
-          }
-        }
-        
-        // Generate and download ZIP
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(zipBlob);
-        link.download = `infographic-pages-${new Date().getTime()}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-        
-        console.log(`${pages.length} 页PNG打包下载成功`);
-      }
-      
-      // Store PNG data URLs for audit
-      setGeneratedPNGs(pngDataUrls);
-      
-      // Clean up
-      document.body.removeChild(iframe);
-      
-    } catch (error) {
-      console.error('Error generating PNG:', error);
-      setPngError('PNG生成失败: ' + (error instanceof Error ? error.message : '未知错误'));
-      
-      // Clean up on error
-      const iframe = document.querySelector('iframe[style*="-9999px"]');
-      if (iframe) {
-        document.body.removeChild(iframe);
-      }
-    } finally {
-      setIsGeneratingPNG(false);
-    }
+    const callbacks: PngGenerationCallbacks = {
+      setIsGeneratingPNG,
+      setPngError,
+      setGeneratedPNGs
+    };
+    
+    await generatePNG(generatedHTML || '', callbacks);
   };
 
   const handleAuditAndFixPNG = async () => {
-    if (!generatedHTML || generatedPNGs.length === 0) {
-      alert('请先生成HTML代码和PNG图片');
-      return;
-    }
-
-    setIsAuditingPNG(true);
-    setAuditError(null);
-
-    try {
-      console.log('开始审计PNG图片...');
-      
-      const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-      
-      if (!GEMINI_API_KEY) {
-        throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
-      }
-
-      const prompt = `你是一个质控智能体，请分析以下生成的PNG图片和HTML代码。
-
-任务：
-1. 检查PNG图片中的内容是否有溢出448px × 597px的画布边界
-2. 识别文字、图标或其他元素是否被裁切或超出边界
-3. 如果发现溢出问题，修复提供的HTML代码
-4. 确保修复后的HTML在448px × 597px的固定尺寸内完美显示
-
-修复要求：
-- 调整字体大小、间距、边距
-- 优化布局结构，确保内容适配画布
-- 保持设计美观性的同时确保完整显示
-- 使用响应式设计技巧适配固定尺寸
-
-请仔细分析图片，如果发现溢出问题，请提供修复后的完整HTML代码。如果没有发现问题，请回复"无需修复"。
-
-当前HTML代码：
-${generatedHTML}
-
-PNG图片数量：${generatedPNGs.length}张
-画布尺寸：448px × 597px`;
-
-      const ai = new GoogleGenAI({
-        apiKey: GEMINI_API_KEY,
-      });
-      
-      const config = {
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
-        responseMimeType: 'text/plain',
-      };
-      
-      const model = 'gemini-2.5-flash';
-      
-      // Prepare contents with text and images
-      const parts: any[] = [
-        { text: prompt } as any
-      ];
-      
-      // Add PNG images as inline data
-      for (let i = 0; i < generatedPNGs.length; i++) {
-        parts.push({
-          inlineData: {
-            mimeType: 'image/png',
-            data: generatedPNGs[i].replace(/^data:image\/png;base64,/, '')
-          }
-        } as any);
-      }
-      
-      const contents = [
-        {
-          role: 'user',
-          parts: parts,
-        },
-      ];
-
-      console.log('发送审计请求到GoogleGenAI...');
-      const response = await ai.models.generateContentStream({
-        model,
-        config,
-        contents,
-      });
-      
-      let auditResult = '';
-      for await (const chunk of response) {
-        if (chunk.text) {
-          auditResult += chunk.text;
-        }
-      }
-      
-      console.log('审计结果:', auditResult);
-      
-      if (auditResult.includes('无需修复') || auditResult.includes('No fixes needed')) {
-        alert('✅ 审计完成：PNG图片无溢出问题，无需修复');
-      } else {
-        // Extract HTML from the response
-        const htmlMatch = auditResult.match(/```html\s*([\s\S]*?)\s*```/) || 
-                          auditResult.match(/(<!DOCTYPE html[\s\S]*<\/html>)/);
-        
-        if (htmlMatch) {
-          const fixedHTML = htmlMatch[1];
-          setGeneratedHTML(fixedHTML);
-          alert('🔧 审计完成：发现溢出问题，已自动修复HTML代码。请重新生成PNG查看效果。');
-          console.log('HTML已更新，长度:', fixedHTML.length);
-        } else {
-          // If no HTML found, show the audit result
-          alert('⚠️ 审计完成：' + auditResult.substring(0, 200) + '...');
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error auditing PNG:', error);
-      setAuditError('审计失败: ' + (error instanceof Error ? error.message : '未知错误'));
-    } finally {
-      setIsAuditingPNG(false);
-    }
+    const callbacks: PngAuditCallbacks = {
+      setIsAuditingPNG,
+      setAuditError,
+      setGeneratedHTML
+    };
+    
+    await auditAndFixPNG(generatedHTML || '', generatedPNGs, callbacks);
   };
 
   return (
