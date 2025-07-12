@@ -63,14 +63,29 @@ export const generatePNG = async (
       throw new Error('无法访问iframe内容');
     }
     
-    // Find all pages in the HTML
-    const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page');
+    // Find all pages in the HTML with more precise selectors
+    const pages = iframeBody.querySelectorAll('[id^="page-"], [id="page1"], [id="page2"], [id="page3"], [id="page4"], [id="page5"], [id="page6"], [id="page7"], [id="page8"], [id="page9"], [id="page10"], .page, .infographic-page');
     console.log(`发现 ${pages.length} 个页面元素`);
+    
+    // Filter out empty or invalid page elements
+    const validPages = Array.from(pages).filter((page: Element) => {
+      const element = page as HTMLElement;
+      // Check if element has meaningful content
+      const hasContent = element.textContent && element.textContent.trim().length > 10;
+      const hasChild = element.children.length > 0;
+      const hasMinHeight = element.offsetHeight > 100;
+      
+      console.log(`页面 ${element.id || element.className} - 内容: ${hasContent}, 子元素: ${hasChild}, 高度: ${element.offsetHeight}`);
+      
+      return hasContent || hasChild || hasMinHeight;
+    });
+    
+    console.log(`过滤后有效页面数量: ${validPages.length}`);
     
     // Array to store PNG data URLs for audit
     const pngDataUrls: string[] = [];
     
-    if (pages.length === 0) {
+    if (validPages.length === 0) {
       console.log('未找到页面元素，尝试截取整个body');
       // If no specific pages found, capture the whole body
       const dataUrl = await htmlToImage.toPng(iframeBody, {
@@ -100,12 +115,12 @@ export const generatePNG = async (
       // Multiple pages - create ZIP
       const zip = new JSZip();
       
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
+      for (let i = 0; i < validPages.length; i++) {
+        const page = validPages[i] as HTMLElement;
         console.log(`正在截取第 ${i + 1} 页...`);
         
         // Make sure only this page is visible
-        pages.forEach((p, index) => {
+        validPages.forEach((p, index) => {
           const element = p as HTMLElement;
           if (index === i) {
             element.style.display = 'flex';
@@ -158,7 +173,7 @@ export const generatePNG = async (
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
       
-      console.log(`${pages.length} 页PNG打包下载成功`);
+      console.log(`${validPages.length} 页PNG打包下载成功`);
     }
     
     // Store PNG data URLs for audit
