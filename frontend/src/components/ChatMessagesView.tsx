@@ -152,8 +152,22 @@ const parseBlueprintResponse = (response: string): BlueprintResult => {
     };
   }
   
-  const blueprintPart = parts[0].trim();
-  const xiaohongshoPart = parts.slice(1).join('---').trim();
+  // Find the blueprint section more carefully
+  let blueprintPart = parts[0].trim();
+  let xiaohongshoPart = parts.slice(1).join('---').trim();
+  
+  // Check if the blueprint part seems incomplete (doesn't contain infographic content)
+  if (blueprintPart.length < 200 || !blueprintPart.includes('信息图')) {
+    console.log('Blueprint part seems incomplete, checking for better split');
+    
+    // Try to find where the blueprint actually ends
+    const xiaohongshuStart = response.search(/小红书发布内容|【小红书标题】|Part 2.*小红书/i);
+    if (xiaohongshuStart !== -1) {
+      blueprintPart = response.substring(0, xiaohongshuStart).trim();
+      xiaohongshoPart = response.substring(xiaohongshuStart).trim();
+      console.log('Found better split at position:', xiaohongshuStart);
+    }
+  }
   
   console.log('Blueprint part length:', blueprintPart.length);
   console.log('Xiaohongshu part length:', xiaohongshoPart.length);
@@ -1124,7 +1138,7 @@ PNG图片数量：${generatedPNGs.length}张
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="bg-neutral-800/50 p-4 rounded-md">
+          <div className="bg-neutral-800/50 p-4 rounded-md max-h-96 overflow-y-auto">
             <pre className="text-sm text-blue-100 whitespace-pre-wrap font-mono leading-relaxed">
               {generatedBlueprint?.blueprint || '蓝图生成中...'}
             </pre>
