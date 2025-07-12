@@ -50,7 +50,7 @@ ${content}
 请以JSON格式返回结果：
 
 {
-  "blueprint": "完整的信息图设计蓝图内容",
+  "blueprint": "信息图 1 / 3\\n页面类型：封面页面\\n页面标题：XXX\\n核心内容与视觉构思\\n\\n布局：XXX\\n背景：XXX\\n内容：XXX\\n视觉元素：XXX\\n色彩：XXX\\n\\n信息图 2 / 3\\n页面类型：概览\\n页面标题：XXX\\n核心内容与视觉构思\\n\\n布局：XXX\\n背景：XXX\\n内容：XXX\\n视觉元素：XXX\\n色彩：XXX\\n\\n信息图 3 / 3\\n页面类型：详情\\n页面标题：XXX\\n核心内容与视觉构思\\n\\n布局：XXX\\n背景：XXX\\n内容：XXX\\n视觉元素：XXX\\n色彩：XXX",
   "xiaohongshu": {
     "titles": [
       "标题1：[吸引人的标题，带相关emoji]",
@@ -63,10 +63,11 @@ ${content}
 
 注意：
 1. 返回严格的JSON格式，不要包含任何其他文字
-2. blueprint字段包含完整的信息图设计蓝图
-3. xiaohongshu.titles包含3个备选标题
-4. xiaohongshu.content包含完整的正文内容，包括hashtags
-5. 小红书内容要求简洁有趣，符合平台调性，标题吸引点击，正文有价值且易读，标签要热门且相关。`;
+2. blueprint字段必须是完整的多行字符串，包含所有页面信息，使用\\n表示换行
+3. blueprint字段不要使用数组格式，必须是单个字符串
+4. xiaohongshu.titles包含3个备选标题
+5. xiaohongshu.content包含完整的正文内容，包括hashtags
+6. 小红书内容要求简洁有趣，符合平台调性，标题吸引点击，正文有价值且易读，标签要热门且相关。`;
 
   try {
     const ai = new GoogleGenAI({
@@ -153,22 +154,39 @@ const parseBlueprintResponse = (response: string): BlueprintResult => {
       let blueprintString = '';
       if (Array.isArray(jsonResult.blueprint)) {
         console.log('Blueprint is an array, converting to string...');
+        console.log('Array length:', jsonResult.blueprint.length);
+        console.log('First array item:', JSON.stringify(jsonResult.blueprint[0], null, 2));
+        
         blueprintString = jsonResult.blueprint.map((page: any, index: number) => {
+          // Log the page object to debug
+          console.log(`Processing page ${index + 1}:`, JSON.stringify(page, null, 2));
+          
+          // Try multiple possible property names
+          const pageType = page.page_type || page.pageType || page.type || page['页面类型'] || '未指定';
+          const pageTitle = page.page_title || page.pageTitle || page.title || page['页面标题'] || '未指定';
+          const layout = page.layout || page['布局'] || '未指定';
+          const background = page.background || page['背景'] || '未指定';
+          const content = page.content || page['内容'] || '未指定';
+          const visualElements = page.visual_elements || page.visualElements || page['视觉元素'] || '未指定';
+          const colors = page.colors || page.color || page['色彩'] || '未指定';
+          
           return `信息图 ${index + 1} / ${jsonResult.blueprint.length}
-页面类型：${page.page_type || page.pageType || '未指定'}
-页面标题：${page.page_title || page.pageTitle || page.title || '未指定'}
+页面类型：${pageType}
+页面标题：${pageTitle}
 核心内容与视觉构思
 
-布局：${page.layout || '未指定'}
-背景：${page.background || '未指定'}
-内容：${page.content || '未指定'}
-视觉元素：${page.visual_elements || page.visualElements || '未指定'}
-色彩：${page.colors || '未指定'}`;
+布局：${layout}
+背景：${background}
+内容：${content}
+视觉元素：${visualElements}
+色彩：${colors}`;
         }).join('\n\n');
       } else if (typeof jsonResult.blueprint === 'string') {
         blueprintString = jsonResult.blueprint;
       } else {
         console.log('Blueprint is neither array nor string, converting to string');
+        console.log('Blueprint type:', typeof jsonResult.blueprint);
+        console.log('Blueprint content:', JSON.stringify(jsonResult.blueprint, null, 2));
         blueprintString = JSON.stringify(jsonResult.blueprint, null, 2);
       }
       

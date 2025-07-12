@@ -497,8 +497,59 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       console.log('Blueprint state updated, showBlueprint:', true); // Debug log
     } catch (error) {
       console.error('Error generating blueprint:', error);
-      // Fallback blueprint
-      const fallbackBlueprint = await generateBlueprint(messageContent);
+      // Use fallback blueprint directly
+      const fallbackBlueprint = {
+        blueprint: `信息图 1 / 3
+页面类型：封面页面（Hero Page）
+页面标题：${messageContent.slice(0, 30)}
+核心内容与视觉构思
+
+布局：垂直居中全屏展示
+背景：渐变色 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500
+内容：主标题 + 副标题
+视觉元素：🔍 📊 组合图标
+色彩：白色文字，渐变背景
+
+信息图 2 / 3
+页面类型：概览（Executive Summary）
+页面标题：核心要点总览
+核心内容与视觉构思
+
+布局：左右对分布局
+背景：bg-slate-50
+内容：关键洞察与分析要点
+视觉元素：概念图谱展示
+色彩：text-indigo-600 主色调
+
+信息图 3 / 3
+页面类型：内容详情
+页面标题：详细分析
+核心内容与视觉构思
+
+布局：标准内容布局
+背景：bg-white
+内容：核心概念和实际应用
+视觉元素：相关图标和图表
+色彩：重点内容 bg-yellow-50 突出`,
+        xiaohongshu: {
+          titles: [
+            `🚀 ${messageContent.slice(0, 20)}...超详细解析！`,
+            `📊 一看就懂的${messageContent.slice(0, 15)}攻略`,
+            `💡 ${messageContent.slice(0, 18)}干货分享`
+          ],
+          content: `今天给大家分享一个超实用的内容！✨
+
+📋 核心要点：
+• 内容清晰易懂
+• 实用性强
+• 适合收藏学习
+
+💡 建议大家：
+收藏起来慢慢看，对你一定有帮助！
+
+#干货分享 #学习笔记 #实用技巧 #知识分享 #效率提升 #生活技能 #经验总结 #必看推荐 #涨知识`
+        }
+      };
       setGeneratedBlueprint(fallbackBlueprint);
       setShowBlueprint(true);
       setShowXiaohongshu(true);
