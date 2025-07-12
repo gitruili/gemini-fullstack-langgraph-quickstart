@@ -190,11 +190,14 @@ const parseBlueprintResponse = (response: string): BlueprintResult => {
     }
   }
   
-  // Extract main content - more flexible pattern
+  // Extract main content - more flexible pattern (including hashtags)
   const contentPatterns = [
-    /【小红书正文】[：:]\s*([\s\S]*?)(?=\n#|$)/,
-    /小红书正文[：:]\s*([\s\S]*?)(?=\n#|$)/,
-    /正文[：:]\s*([\s\S]*?)(?=\n#|$)/
+    /【小红书正文】[：:]\s*([\s\S]*?)(?=\n\n|$)/,
+    /小红书正文[：:]\s*([\s\S]*?)(?=\n\n|$)/,
+    /正文[：:]\s*([\s\S]*?)(?=\n\n|$)/,
+    /【小红书正文】[：:]\s*([\s\S]*)/,
+    /小红书正文[：:]\s*([\s\S]*)/,
+    /正文[：:]\s*([\s\S]*)/
   ];
   
   let content = '';
