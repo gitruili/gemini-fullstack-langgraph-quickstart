@@ -18,7 +18,15 @@ import { GoogleGenAI } from '@google/genai';
 
 // Blueprint generation function
 // API call to generate blueprint using GoogleGenAI
-const callGeminiAPI = async (content: string): Promise<string> => {
+interface BlueprintResult {
+  blueprint: string;
+  xiaohongshu: {
+    titles: string[];
+    content: string;
+  };
+}
+
+const callGeminiAPI = async (content: string): Promise<BlueprintResult> => {
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   
   if (!GEMINI_API_KEY) {
@@ -106,14 +114,15 @@ ${content}
       contents,
     });
     
-    let blueprintContent = '';
+    let fullResponse = '';
     for await (const chunk of response) {
       if (chunk.text) {
-        blueprintContent += chunk.text;
+        fullResponse += chunk.text;
       }
     }
     
-    return blueprintContent;
+    // Parse the response to separate blueprint and Xiaohongshu content
+    return parseBlueprintResponse(fullResponse);
   } catch (error) {
     console.error('Error calling GoogleGenAI API:', error);
     // Fallback to a basic blueprint if API fails
@@ -121,11 +130,47 @@ ${content}
   }
 };
 
+// Parse the API response to separate blueprint and Xiaohongshu content
+const parseBlueprintResponse = (response: string): BlueprintResult => {
+  // Split the response by the separator
+  const parts = response.split('---');
+  
+  if (parts.length < 2) {
+    // If no separator found, treat entire response as blueprint
+    return {
+      blueprint: response,
+      xiaohongshu: {
+        titles: [],
+        content: ''
+      }
+    };
+  }
+  
+  const blueprintPart = parts[0].trim();
+  const xiaohongshoPart = parts.slice(1).join('---').trim();
+  
+  // Extract titles from Xiaohongshu content
+  const titleMatches = xiaohongshoPart.match(/标题\d+：(.*?)(?=\n|标题\d+：|【小红书正文】|$)/g);
+  const titles = titleMatches ? titleMatches.map(match => match.replace(/标题\d+：/, '').trim()) : [];
+  
+  // Extract main content (everything after 【小红书正文】)
+  const contentMatch = xiaohongshoPart.match(/【小红书正文】：\s*([\s\S]*?)(?=\n#|$)/);
+  const content = contentMatch ? contentMatch[1].trim() : '';
+  
+  return {
+    blueprint: blueprintPart,
+    xiaohongshu: {
+      titles,
+      content
+    }
+  };
+};
+
 // Fallback blueprint generator
-const generateFallbackBlueprint = (content: string): string => {
+const generateFallbackBlueprint = (content: string): BlueprintResult => {
   const firstSentence = content.split('.')[0] || 'AI 数据分析';
   
-  return `信息图 1 / 3
+  const blueprintContent = `信息图 1 / 3
 页面类型：封面页面（Hero Page）
 页面标题：${firstSentence.slice(0, 30)}
 核心内容与视觉构思
@@ -156,19 +201,9 @@ const generateFallbackBlueprint = (content: string): string => {
 背景：bg-white
 内容：核心概念和实际应用
 视觉元素：相关图标和图表
-色彩：重点内容 bg-yellow-50 突出
+色彩：重点内容 bg-yellow-50 突出`;
 
----
-
-小红书发布内容：
-
-【小红书标题】（3个备选）：
-标题1：🚀 ${firstSentence.slice(0, 20)}...超详细解析！
-标题2：📊 一看就懂的${firstSentence.slice(0, 15)}攻略
-标题3：💡 ${firstSentence.slice(0, 18)}干货分享
-
-【小红书正文】：
-今天给大家分享一个超实用的内容！✨
+  const xiaohongshuContent = `今天给大家分享一个超实用的内容！✨
 
 📋 核心要点：
 • 内容清晰易懂
@@ -179,10 +214,24 @@ const generateFallbackBlueprint = (content: string): string => {
 收藏起来慢慢看，对你一定有帮助！
 
 #干货分享 #学习笔记 #实用技巧 #知识分享 #效率提升 #生活技能 #经验总结 #必看推荐 #涨知识`;
+
+  const xiaohongshuTitles = [
+    `🚀 ${firstSentence.slice(0, 20)}...超详细解析！`,
+    `📊 一看就懂的${firstSentence.slice(0, 15)}攻略`,
+    `💡 ${firstSentence.slice(0, 18)}干货分享`
+  ];
+
+  return {
+    blueprint: blueprintContent,
+    xiaohongshu: {
+      titles: xiaohongshuTitles,
+      content: xiaohongshuContent
+    }
+  };
 };
 
 // Updated blueprint generation function
-const generateBlueprint = async (content: string): Promise<string> => {
+const generateBlueprint = async (content: string): Promise<BlueprintResult> => {
   try {
     return await callGeminiAPI(content);
   } catch (error) {
@@ -638,7 +687,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   copiedMessageId,
 }) => {
   const [isGeneratingBlueprint, setIsGeneratingBlueprint] = useState(false);
-  const [generatedBlueprint, setGeneratedBlueprint] = useState<string | null>(null);
+  const [generatedBlueprint, setGeneratedBlueprint] = useState<BlueprintResult | null>(null);
   const [blueprintError, setBlueprintError] = useState<string | null>(null);
   const [isGeneratingHTML, setIsGeneratingHTML] = useState(false);
   const [generatedHTML, setGeneratedHTML] = useState<string | null>(null);
@@ -652,6 +701,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   
   // UI state variables
   const [showBlueprint, setShowBlueprint] = useState(false);
+  const [showXiaohongshu, setShowXiaohongshu] = useState(false);
   const [showHTML, setShowHTML] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -671,24 +721,14 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       console.log('Generated blueprint:', generatedBlueprint); // Debug log
       setGeneratedBlueprint(generatedBlueprint);
       setShowBlueprint(true);
+      setShowXiaohongshu(true);
       console.log('Blueprint state updated, showBlueprint:', true); // Debug log
     } catch (error) {
       console.error('Error generating blueprint:', error);
       // Fallback blueprint
-      setGeneratedBlueprint(`信息图 1 / 1
-页面类型：内容展示
-页面标题：AI 响应内容
-核心内容与视觉构思
-
-布局：标准文档布局
-主要元素：
-  - 构思：简洁清晰的排版设计
-  - 标题：响应内容 + 图标 📋
-  - 视觉概念：现代化信息展示
-内容重点：
-  - 信息层次化展示
-  - 用户体验优化`);
+      setGeneratedBlueprint(generateFallbackBlueprint(messageContent));
       setShowBlueprint(true);
+      setShowXiaohongshu(true);
     }
   };
 
@@ -707,7 +747,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       }
       
       console.log('Generating HTML with blueprint...'); // Debug log
-      const generatedHTML = await generateHTML(blueprintToUse);
+      const generatedHTML = await generateHTML(blueprintToUse.blueprint);
       console.log('Generated HTML:', generatedHTML); // Debug log
       setGeneratedHTML(generatedHTML);
       setShowHTML(true);
@@ -1031,8 +1071,48 @@ PNG图片数量：${generatedPNGs.length}张
           </div>
           <div className="bg-neutral-800/50 p-4 rounded-md">
             <pre className="text-sm text-blue-100 whitespace-pre-wrap font-mono leading-relaxed">
-              {generatedBlueprint || '蓝图生成中...'}
+              {generatedBlueprint?.blueprint || '蓝图生成中...'}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {showXiaohongshu && generatedBlueprint && (
+        <div className="mt-4 p-6 bg-pink-900/20 rounded-lg border-2 border-pink-500/30 shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-pink-300 flex items-center gap-2">
+              📱 小红书内容
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowXiaohongshu(false)}
+              className="text-pink-400 hover:text-pink-200 hover:bg-pink-800/30"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="space-y-4">
+            {generatedBlueprint.xiaohongshu.titles.length > 0 && (
+              <div className="bg-neutral-800/50 p-4 rounded-md">
+                <h4 className="text-pink-200 font-semibold mb-2">📝 标题选择 (3个备选):</h4>
+                <div className="space-y-2">
+                  {generatedBlueprint.xiaohongshu.titles.map((title, index) => (
+                    <div key={index} className="text-sm text-pink-100 bg-pink-900/20 p-2 rounded cursor-pointer hover:bg-pink-900/30 transition-colors">
+                      <span className="text-pink-400 font-medium">标题{index + 1}:</span> {title}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {generatedBlueprint.xiaohongshu.content && (
+              <div className="bg-neutral-800/50 p-4 rounded-md">
+                <h4 className="text-pink-200 font-semibold mb-2">📝 正文内容:</h4>
+                <div className="text-sm text-pink-100 whitespace-pre-wrap leading-relaxed">
+                  {generatedBlueprint.xiaohongshu.content}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1151,6 +1231,17 @@ PNG图片数量：${generatedPNGs.length}张
           onClick={handleGenerateBlueprint}
         >
           {showBlueprint ? "Hide Blueprint" : "Blueprint"}
+          <FileText className="ml-1 h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-pink-700 hover:bg-pink-600 text-pink-100 border-pink-500"
+          onClick={() => setShowXiaohongshu(!showXiaohongshu)}
+          disabled={!generatedBlueprint}
+        >
+          {showXiaohongshu ? "Hide 小红书" : "小红书"}
           <FileText className="ml-1 h-4 w-4" />
         </Button>
 
