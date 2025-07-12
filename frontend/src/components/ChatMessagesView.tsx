@@ -164,8 +164,32 @@ const parseBlueprintResponse = (response: string): BlueprintResult => {
     // Validate JSON structure
     if (jsonResult.blueprint && jsonResult.xiaohongshu) {
       console.log('Valid JSON structure found');
+      
+      // Convert blueprint to string if it's an array of objects
+      let blueprintString = '';
+      if (Array.isArray(jsonResult.blueprint)) {
+        console.log('Blueprint is an array, converting to string...');
+        blueprintString = jsonResult.blueprint.map((page: any, index: number) => {
+          return `信息图 ${index + 1} / ${jsonResult.blueprint.length}
+页面类型：${page.page_type || page.pageType || '未指定'}
+页面标题：${page.page_title || page.pageTitle || page.title || '未指定'}
+核心内容与视觉构思
+
+布局：${page.layout || '未指定'}
+背景：${page.background || '未指定'}
+内容：${page.content || '未指定'}
+视觉元素：${page.visual_elements || page.visualElements || '未指定'}
+色彩：${page.colors || '未指定'}`;
+        }).join('\n\n');
+      } else if (typeof jsonResult.blueprint === 'string') {
+        blueprintString = jsonResult.blueprint;
+      } else {
+        console.log('Blueprint is neither array nor string, converting to string');
+        blueprintString = JSON.stringify(jsonResult.blueprint, null, 2);
+      }
+      
       return {
-        blueprint: jsonResult.blueprint,
+        blueprint: blueprintString,
         xiaohongshu: {
           titles: jsonResult.xiaohongshu.titles || [],
           content: jsonResult.xiaohongshu.content || ''
