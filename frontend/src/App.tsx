@@ -113,30 +113,30 @@ export default function App() {
         }));
 
         // Automatically save the AI response to file
-        try {
-          const messageContent = typeof lastMessage.content === "string"
-            ? lastMessage.content
-            : JSON.stringify(lastMessage.content);
+        // try {
+        //   const messageContent = typeof lastMessage.content === "string"
+        //     ? lastMessage.content
+        //     : JSON.stringify(lastMessage.content);
 
-          // Find the user's question for filename
-          const messageIndex = thread.messages.findIndex(msg => msg.id === lastMessage.id);
-          const previousMessage = messageIndex > 0 ? thread.messages[messageIndex - 1] : null;
-          const userQuestion = previousMessage && previousMessage.type === "human" 
-            ? (typeof previousMessage.content === "string" ? previousMessage.content : "query")
-            : "ai_response";
+        //   // Find the user's question for filename
+        //   const messageIndex = thread.messages.findIndex(msg => msg.id === lastMessage.id);
+        //   const previousMessage = messageIndex > 0 ? thread.messages[messageIndex - 1] : null;
+        //   const userQuestion = previousMessage && previousMessage.type === "human" 
+        //     ? (typeof previousMessage.content === "string" ? previousMessage.content : "query")
+        //     : "ai_response";
           
-          // Create a safe filename from the user question
-          const safeFilename = userQuestion
-            .slice(0, 50)
-            .replace(/[^a-zA-Z0-9\s]/g, '')
-            .replace(/\s+/g, '_')
-            .toLowerCase() || 'ai_response';
+        //   // Create a safe filename from the user question
+        //   const safeFilename = userQuestion
+        //     .slice(0, 50)
+        //     .replace(/[^a-zA-Z0-9\s]/g, '')
+        //     .replace(/\s+/g, '_')
+        //     .toLowerCase() || 'ai_response';
           
-          saveToFile(messageContent, safeFilename, 'md');
-          console.log(`Response automatically saved as: ${safeFilename}_${new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]}.md`);
-        } catch (err) {
-          console.error("Failed to auto-save response: ", err);
-        }
+        //   saveToFile(messageContent, safeFilename, 'md');
+        //   console.log(`Response automatically saved as: ${safeFilename}_${new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]}.md`);
+        // } catch (err) {
+        //   console.error("Failed to auto-save response: ", err);
+        // }
       }
       hasFinalizeEventOccurredRef.current = false;
     }
