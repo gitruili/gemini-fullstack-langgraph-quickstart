@@ -885,12 +885,12 @@ PNG图片数量：${generatedPNGs.length}张
       
       const config = {
         thinkingConfig: {
-          thinkingBudget: -1,
+          thinkingBudget: 0,
         },
         responseMimeType: 'text/plain',
       };
       
-      const model = 'gemini-2.5-pro';
+      const model = 'gemini-2.5-flash';
       
       // Prepare contents with text and images
       const parts: any[] = [
