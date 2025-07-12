@@ -25,7 +25,7 @@ const callGeminiAPI = async (content: string): Promise<string> => {
     throw new Error('VITE_GEMINI_API_KEY is not set in environment variables');
   }
 
-  const prompt = `你是一个专业的信息图表设计师。请根据以下内容生成详细的设计蓝图。
+  const prompt = `你是一个专业的信息图表设计师和小红书内容创作者。请根据以下内容生成详细的设计蓝图和小红书发布内容。
 
 内容：
 ${content}
@@ -53,7 +53,28 @@ ${content}
 7. 使用emoji图标和CSS渐变背景
 8. 页面间要有逻辑连贯性
 
-请根据内容的实际特点和信息量来确定页面数量和类型。`;
+请根据内容的实际特点和信息量来确定页面数量和类型。
+
+---
+
+小红书发布内容：
+
+【小红书标题】（3个备选）：
+标题1：[吸引人的标题，带相关emoji]
+标题2：[另一个角度的标题，带相关emoji]
+标题3：[第三个备选标题，带相关emoji]
+
+【小红书正文】：
+[引人入胜的开头]
+
+[核心内容要点，用emoji和换行符格式化]
+
+[实用建议或总结]
+
+[相关话题标签]
+#标签1 #标签2 #标签3 #标签4 #标签5 #标签6 #标签7 #标签8 #标签9
+
+注意：小红书内容要求简洁有趣，符合平台调性，标题吸引点击，正文有价值且易读，标签要热门且相关。`;
 
   try {
     const ai = new GoogleGenAI({
@@ -135,7 +156,29 @@ const generateFallbackBlueprint = (content: string): string => {
 背景：bg-white
 内容：核心概念和实际应用
 视觉元素：相关图标和图表
-色彩：重点内容 bg-yellow-50 突出`;
+色彩：重点内容 bg-yellow-50 突出
+
+---
+
+小红书发布内容：
+
+【小红书标题】（3个备选）：
+标题1：🚀 ${firstSentence.slice(0, 20)}...超详细解析！
+标题2：📊 一看就懂的${firstSentence.slice(0, 15)}攻略
+标题3：💡 ${firstSentence.slice(0, 18)}干货分享
+
+【小红书正文】：
+今天给大家分享一个超实用的内容！✨
+
+📋 核心要点：
+• 内容清晰易懂
+• 实用性强
+• 适合收藏学习
+
+💡 建议大家：
+收藏起来慢慢看，对你一定有帮助！
+
+#干货分享 #学习笔记 #实用技巧 #知识分享 #效率提升 #生活技能 #经验总结 #必看推荐 #涨知识`;
 };
 
 // Updated blueprint generation function
