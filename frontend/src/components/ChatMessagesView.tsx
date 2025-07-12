@@ -132,11 +132,17 @@ ${content}
 
 // Parse the API response to separate blueprint and Xiaohongshu content
 const parseBlueprintResponse = (response: string): BlueprintResult => {
+  console.log('=== Parsing Response ===');
+  console.log('Full response length:', response.length);
+  console.log('Response preview:', response.substring(0, 500));
+  
   // Split the response by the separator
   const parts = response.split('---');
+  console.log('Found parts:', parts.length);
   
   if (parts.length < 2) {
     // If no separator found, treat entire response as blueprint
+    console.log('No separator found, using entire response as blueprint');
     return {
       blueprint: response,
       xiaohongshu: {
@@ -149,13 +155,62 @@ const parseBlueprintResponse = (response: string): BlueprintResult => {
   const blueprintPart = parts[0].trim();
   const xiaohongshoPart = parts.slice(1).join('---').trim();
   
-  // Extract titles from Xiaohongshu content
-  const titleMatches = xiaohongshoPart.match(/标题\d+：(.*?)(?=\n|标题\d+：|【小红书正文】|$)/g);
-  const titles = titleMatches ? titleMatches.map(match => match.replace(/标题\d+：/, '').trim()) : [];
+  console.log('Blueprint part length:', blueprintPart.length);
+  console.log('Xiaohongshu part length:', xiaohongshoPart.length);
+  console.log('Xiaohongshu part preview:', xiaohongshoPart.substring(0, 300));
   
-  // Extract main content (everything after 【小红书正文】)
-  const contentMatch = xiaohongshoPart.match(/【小红书正文】：\s*([\s\S]*?)(?=\n#|$)/);
-  const content = contentMatch ? contentMatch[1].trim() : '';
+  // Extract titles - more flexible pattern
+  const titlePatterns = [
+    /标题\d+[：:]\s*(.*?)(?=\n|标题\d+[：:]|【小红书正文】|$)/g,
+    /\*\s*\*\*标题\d+[：:]\*\*\s*(.*?)(?=\n|\*\s*\*\*标题\d+[：:]|【小红书正文】|$)/g,
+    /•\s*标题\d+[：:]\s*(.*?)(?=\n|•\s*标题\d+[：:]|【小红书正文】|$)/g
+  ];
+  
+  let titles: string[] = [];
+  for (const pattern of titlePatterns) {
+    const matches = Array.from(xiaohongshoPart.matchAll(pattern));
+    if (matches.length > 0) {
+      titles = matches.map(match => match[1].trim());
+      console.log('Found titles with pattern:', pattern, titles);
+      break;
+    }
+  }
+  
+  // Extract main content - more flexible pattern
+  const contentPatterns = [
+    /【小红书正文】[：:]\s*([\s\S]*?)(?=\n#|$)/,
+    /小红书正文[：:]\s*([\s\S]*?)(?=\n#|$)/,
+    /正文[：:]\s*([\s\S]*?)(?=\n#|$)/
+  ];
+  
+  let content = '';
+  for (const pattern of contentPatterns) {
+    const match = xiaohongshoPart.match(pattern);
+    if (match) {
+      content = match[1].trim();
+      console.log('Found content with pattern:', pattern);
+      console.log('Content length:', content.length);
+      break;
+    }
+  }
+  
+  // If no content found with patterns, try to extract everything after titles
+  if (!content && titles.length > 0) {
+    const lastTitleIndex = xiaohongshoPart.lastIndexOf(titles[titles.length - 1]);
+    if (lastTitleIndex !== -1) {
+      const afterTitles = xiaohongshoPart.substring(lastTitleIndex + titles[titles.length - 1].length);
+      const contentStart = afterTitles.search(/[\u4e00-\u9fff]|[a-zA-Z]/); // Find first Chinese char or letter
+      if (contentStart !== -1) {
+        content = afterTitles.substring(contentStart).trim();
+        console.log('Extracted content after titles:', content.length);
+      }
+    }
+  }
+  
+  console.log('Final parsed result:');
+  console.log('- Blueprint length:', blueprintPart.length);
+  console.log('- Titles count:', titles.length);
+  console.log('- Content length:', content.length);
   
   return {
     blueprint: blueprintPart,
