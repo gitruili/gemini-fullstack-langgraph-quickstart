@@ -175,16 +175,22 @@ export const generatePNG = async (
     await new Promise((resolve) => {
       iframe.onload = resolve;
       // Fallback timeout
-      setTimeout(resolve, 3000);
+      setTimeout(resolve, 5000);
     });
     
-    // Additional wait for fonts and styles to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Additional wait for fonts and styles to load - increased for stability
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Additional wait for any CSS animations or transitions to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const iframeBody = iframe.contentDocument?.body;
     if (!iframeBody) {
       throw new Error('无法访问iframe内容');
     }
+    
+    // Wait for any potential font loading or CSS recalculation
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Find all pages in the HTML with more precise selectors
     const pages = iframeBody.querySelectorAll('[id^="page-"], [id="page1"], [id="page2"], [id="page3"], [id="page4"], [id="page5"], [id="page6"], [id="page7"], [id="page8"], [id="page9"], [id="page10"], .page, .infographic-page');
@@ -305,28 +311,25 @@ export const generatePNG = async (
         });
         
         // Wait a bit for the visibility changes to take effect
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Additional wait to ensure page is fully rendered
         await new Promise(resolve => setTimeout(resolve, 500));
         
         try {
-          // Calculate optimal dimensions for this page
-          const dimensions = calculateOptimalDimensions(page);
-          const background = detectBackground(page, defaultOptions);
-          
-          console.log(`第 ${i + 1} 页优化尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
-          
           const dataUrl = await htmlToImage.toPng(page, {
-            width: dimensions.width,
-            height: dimensions.height,
+            width: 448,
+            height: 597,
             style: {
               transform: 'scale(1)',
               transformOrigin: 'top left',
             },
             quality: 1.0,
             pixelRatio: 2,
-            backgroundColor: background,
-            // Add options to better handle content boundaries
-            skipAutoScale: true,
-            includeQueryParams: true,
+            backgroundColor: '#ffffff',
+            skipFonts: false,
+            // Add more options for stability
+            cacheBust: true,
           });
           
           pngDataUrls.push(dataUrl);

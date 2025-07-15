@@ -34,18 +34,28 @@ CRITICAL Design Quality Requirements:
 - SPECIFIC ICONS: Use concrete, recognizable emojis (🚀📱💡🎯📊🔧) not abstract symbols
 - ENGAGING DESIGN: Create visually appealing sections with colorful cards, borders, and backgrounds
 
+VISUAL DENSITY & STABILITY Requirements:
+- RICH CONTENT: Each page must have substantial visual content, avoid empty/sparse layouts
+- CONSISTENT QUALITY: Maintain consistent design quality across all pages
+- MULTIPLE ELEMENTS: Include 3-5 distinct visual elements per page minimum
+- BALANCED LAYOUT: Use proper proportions, avoid cramped or overly spacious designs
+- STRUCTURED HIERARCHY: Clear visual hierarchy with headers, subheaders, and content sections
+- DECORATIVE ELEMENTS: Add borders, shadows, gradients, and visual details for richness
+
 Layout Standards:
 - Minimum 16px font size for body text
 - Minimum 20px font size for headings
 - Minimum 8px padding between text elements
 - Use colorful gradient backgrounds (#4F46E5 to #7C3AED, #EF4444 to #F97316, etc.)
 - Ensure proper z-index and positioning to prevent overlap
+- Add visual depth with shadows, borders, and layered elements
 
 Code requirements:
 - Compact and concise code structure, minimal comments
 - All pages must be included in a single HTML document
 - Use simplified CSS class names and structure
 - Ensure all pages are properly implemented
+- Generate complete, functional code that renders consistently
 
 Generate a complete runnable HTML document including all pages:
 
@@ -75,7 +85,14 @@ Key Principles:
 - Use vibrant colors and gradients to avoid bland, boring layouts
 - Ensure no text overlap or visual clutter
 - Prioritize user experience and visual appeal
-- Always provide complete, runnable code with all specified pages`,
+- Always provide complete, runnable code with all specified pages
+
+CRITICAL: Ensure VISUAL RICHNESS and STABILITY
+- Every page must have substantial visual content - never generate sparse/empty layouts
+- Maintain consistent quality across all pages
+- Include multiple visual elements, proper hierarchy, and decorative details
+- Use proper proportions and balanced layouts
+- Generate functional, complete code that renders reliably every time`,
         }
       ],
     };
@@ -281,15 +298,15 @@ const generateFallbackHTML = (content: string): string => {
             <div class="icon">🚀</div>
             <h1>${title.slice(0, 50)}</h1>
         </div>
-        <div class="content-grid">
-            ${listItems.map((item, i) => {
+                 <div class="content-grid">
+             ${listItems.map((item, i) => {
               const isHighlight = i % 2 === 0 ? 'highlight' : '';
               return `<div class="content-item ${isHighlight}">
                 <span class="bullet">•</span>
                 ${item.slice(0, 80)}
               </div>`;
-            }).join('')}
-        </div>
+             }).join('')}
+         </div>
     </div>
 </body>
 </html>`;
