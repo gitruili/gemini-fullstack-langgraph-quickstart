@@ -30,30 +30,29 @@ CRITICAL Design Quality Requirements:
 - Avoid light gray (#999, #ccc) text - use dark colors (#333, #444) minimum
 - PROPER SPACING: Ensure adequate line-height (1.4-1.6) and letter-spacing
 - Prevent text overlap: use sufficient margins and padding between elements
-- VISUAL RICHNESS: Use vibrant gradients, colorful backgrounds, and engaging layouts
-- SPECIFIC ICONS: Use concrete, recognizable emojis (🚀📱💡🎯📊🔧) not abstract symbols
+- VISUAL APPEAL: Use vibrant gradients, colorful backgrounds, and clean layouts
+- SPECIFIC ICONS: Use concrete, recognizable emojis exactly as specified
 
-Core Layout Standards:
+STABILITY FIRST Approach:
+- SIMPLE LAYOUTS: Use straightforward flexbox or grid layouts that render reliably
+- CLEAR STRUCTURE: Each page should follow a predictable, clean structure
+- AVOID COMPLEX POSITIONING: Don't use intricate absolute positioning or complex transforms
+- READABLE CONTENT: Ensure all text is clearly readable and properly sized
+- CONSISTENT QUALITY: Generate reliable, clean designs that work every time
+
+Layout Standards:
 - Minimum 16px font size for body text
 - Minimum 20px font size for headings
 - Minimum 12px padding between text elements
-- Use colorful gradient backgrounds for visual appeal
-- Ensure proper positioning and avoid layout overflow
-- Keep layouts simple but visually appealing
-
-STABILITY Requirements:
-- SIMPLE LAYOUTS: Use straightforward flexbox or grid layouts that work reliably
-- CONSISTENT STRUCTURE: Each page should follow a clear, predictable structure
-- AVOID COMPLEX POSITIONING: Don't use complex absolute positioning or transforms
-- READABLE CONTENT: Ensure all text is clearly readable and properly sized
-- BALANCED DESIGN: Use appropriate white space and content density
+- Use the background colors specified in blueprint when provided
+- Keep layouts clean, balanced, and visually appealing
+- Include specified icons and basic visual elements
 
 Code requirements:
-- Compact and concise code structure, minimal comments
 - All pages must be included in a single HTML document
 - Use simplified CSS class names and structure
-- Ensure all pages are properly implemented and render correctly
-- Focus on reliability over visual complexity
+- Generate complete, functional code that renders reliably
+- Focus on stability and readability over complex visual effects
 
 Generate a complete runnable HTML document including all pages:
 
@@ -75,21 +74,15 @@ ${blueprint}`;
       responseMimeType: 'text/plain',
       systemInstruction: [
         {
-          text: `You are an expert frontend developer and UI designer with a focus on creating stable, reliable designs. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints.
+          text: `You are an expert frontend developer focused on creating stable, reliable designs. Generate complete HTML+CSS+JavaScript code based on design blueprints.
 
 Core Principles:
 - STABILITY FIRST: Prioritize layouts that render consistently and reliably
 - HIGH CONTRAST: Ensure minimum 4.5:1 color contrast for readability
-- SIMPLE BUT ENGAGING: Create visually appealing designs without overly complex layouts
+- CLEAN DESIGN: Create visually appealing designs with simple, robust layouts
 - CLEAR STRUCTURE: Use straightforward flexbox/grid layouts that work properly
 - READABLE CONTENT: Ensure all text is properly sized and clearly visible
 - RELIABLE CODE: Generate functional code that renders correctly every time
-
-AVOID:
-- Complex absolute positioning or intricate transforms
-- Overly dense layouts that cause overlap or rendering issues
-- Layouts that might break or render incorrectly
-- Tiny fonts or poor contrast that affects readability
 
 Always provide complete, runnable code with all specified pages that render reliably.`,
         }

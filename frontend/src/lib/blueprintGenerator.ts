@@ -48,16 +48,29 @@ ${content}
 视觉元素设计原则（重要）：
 - 只描述静态视觉元素，避免动态描述（如"挥舞"、"流动"、"移动"、"闪烁"、"环绕"、"轨道"、"旋转"等）
 - 使用具体的emoji图标组合（🚀📱💡🎯📊🔧⚡🌟等）
-- 描述固定的图形布局（如"居中放置的图标"、"对称排列的元素"、"层叠的卡片布局"、"上下左右固定位置"）
-- 强调色彩渐变和静态装饰效果（如"渐变光晕"、"装饰性边框"、"背景几何图案"）
-- 使用静态但吸引人的构图（如"放射状布局"、"对称构图"、"黄金比例布局"、"网格排列"）
+- 描述简单稳定的布局（如"上中下三层布局"、"左右对称布局"、"网格卡片排列"、"垂直居中布局"）
+- 强调色彩渐变和视觉吸引力（如"渐变背景"、"彩色卡片"、"对比色文字"）
+- 使用简单但吸引人的设计（如"卡片式布局"、"标题+内容结构"、"图标+文字组合"）
+
+简单但吸引眼球的布局示例：
+✅ 好的描述："上下三层布局，顶部标题区域，中间网格排列三个彩色卡片，底部简介文字"
+✅ 好的描述："左右两栏布局，左侧大标题配图标，右侧要点列表"
+✅ 好的描述："垂直居中布局，顶部🚀图标，中间主标题，底部副标题"
+✅ 好的描述："网格布局，2x2四个卡片，每个卡片包含图标和标题"
+❌ 避免："放射状布局"、"连接线装饰"、"复杂的绝对定位"、"多层叠加效果"、"环形排列"
+
+布局复杂度控制：
+- 优先使用标准布局：上下布局、左右布局、网格布局、居中布局
+- 避免复杂的几何布局：放射状、环形、斜角、多层重叠
+- 重点通过颜色、图标、渐变来实现视觉吸引力
+- 确保描述的布局都可以用简单的CSS flexbox/grid实现
 
 静态视觉元素示例：
 ✅ 好的描述："中央放置大型🚀图标，底部横排三个小图标📊💡🎯"
 ✅ 好的描述："顶部横幅式渐变背景，配以左右对称的📊图表图标"
-✅ 好的描述："三层卡片式布局，每层使用不同的渐变色背景"
-✅ 好的描述："上方放置🧠图标，左侧🌐图标，右侧</>图标，下方⚙️图标，四角固定分布"
-❌ 避免："固定轨道环绕的图标"、"流动的代码"、"跳跃的数据"、"闪烁的光效"、"围绕中心的元素"
+✅ 好的描述："上中下三层卡片布局，每层使用不同的渐变色背景"
+✅ 好的描述："左右两栏布局，左侧🧠图标+标题，右侧要点列表"
+❌ 避免："固定轨道环绕的图标"、"流动的代码"、"跳跃的数据"、"闪烁的光效"、"围绕中心的元素"、"放射状排列"
 
 请根据内容的实际特点和信息量来确定页面数量和类型。
 
@@ -103,14 +116,17 @@ ${content}
       responseMimeType: 'application/json',
       systemInstruction: [
         {
-          text: `You are a professional infographic designer and Xiaohongshu content creator with expertise in static visual design. You must respond in valid JSON format only. 
+          text: `You are a professional infographic designer and Xiaohongshu content creator with expertise in creating simple but visually appealing designs. You must respond in valid JSON format only. 
 
 Critical Requirements:
-- Only describe STATIC visual elements that work perfectly in PNG images
-- Avoid any dynamic, animated, or motion-based descriptions
-- Focus on fixed layouts, positioned elements, and static compositions
-- Use concrete emoji icons and specific positioning descriptions
-- Ensure all visual elements are clearly defined and implementable in static HTML/CSS
+- Only describe SIMPLE, STABLE layouts that work perfectly with basic CSS (flexbox, grid)
+- Avoid complex layouts like radial, orbital, or intricate positioning
+- Focus on VISUAL APPEAL through colors, gradients, icons, and typography
+- Use standard layout patterns: top-bottom, left-right, grid, centered layouts
+- Ensure all visual elements are clearly defined and easily implementable
+- Prioritize designs that are both attractive AND technically reliable
+
+Generate simple but eye-catching designs that can be reliably implemented with standard HTML/CSS.
 
 Do not include any explanation or additional text outside of the JSON structure. Return exactly the format requested in the prompt.`,
         }
@@ -327,32 +343,32 @@ const generateFallbackBlueprint = (content: string): BlueprintResult => {
 页面标题：${firstSentence.slice(0, 30)}
 核心内容与视觉构思
 
-布局：垂直居中全屏展示，黄金比例布局
+布局：垂直居中布局，从上到下分为三层
 背景：css(linear-gradient(135deg, #667eea 0%, #764ba2 100%))
-内容：主标题 + 副标题 + 核心价值点
-视觉元素：中央放置大型🚀图标，底部对称排列📊💡🎯三个小图标，四周装饰性渐变光晕
-色彩：白色主文字，金色强调色，深蓝渐变背景
+内容：顶部图标，中间主标题，底部副标题
+视觉元素：顶部居中放置大型🚀图标，中间白色主标题，底部金色副标题文字
+色彩：白色主文字，金色强调色，深蓝紫渐变背景
 
 信息图 2 / 3
 页面类型：概览（Executive Summary）
 页面标题：核心要点总览
 核心内容与视觉构思
 
-布局：上下分层式布局，顶部标题区域，中间内容卡片网格
+布局：上下分层布局，顶部标题区域，中间网格卡片区域
 背景：css(linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%))
-内容：关键洞察与分析要点，3-4个核心概念卡片
-视觉元素：顶部横幅式🎯图标，中间采用2x2网格布局，每个卡片配有📈📊💎🔧等静态图标
-色彩：深色文字(#1a1a1a)，彩色卡片背景，统一的圆角设计
+内容：标题横幅和2x2网格排列的要点卡片
+视觉元素：顶部🎯图标标题横幅，中间四个彩色卡片，每个卡片包含📈📊💎🔧图标和文字
+色彩：深色文字(#1a1a1a)，多彩卡片背景，统一圆角设计
 
 信息图 3 / 3
 页面类型：内容详情
 页面标题：详细分析与应用
 核心内容与视觉构思
 
-布局：左右对称式布局，中轴线设计
+布局：左右两栏布局，左侧图标标题区，右侧内容列表区
 背景：css(linear-gradient(45deg, #f0f9ff 0%, #e0e7ff 100%))
-内容：核心概念详解和实际应用案例
-视觉元素：左侧放置💡创新图标，右侧配以📋列表图标，中间连接线条设计，底部⭐收藏提示图标
+内容：左侧核心概念展示，右侧应用要点列表
+视觉元素：左侧大型💡图标配标题，右侧📋列表配要点，底部⭐提示图标
 色彩：主题蓝色系(#3b82f6)，重点内容使用暖色强调(#f59e0b)，保持高对比度`;
 
   const xiaohongshuContent = `今天给大家分享一个超实用的内容！✨
