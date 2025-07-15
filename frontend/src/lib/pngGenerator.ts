@@ -110,17 +110,118 @@ const detectBackground = (element: HTMLElement, options?: PngGenerationOptions):
   
   console.log('设计特征 - hasCardStyling:', hasCardStyling, 'hasGradient:', hasGradient);
   
-  // For card-like designs with borders/shadows, use transparent to preserve the card effect
-  if (hasCardStyling && (bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent')) {
-    return 'transparent';
-  }
+  // Function to parse RGB color and determine if it's dark
+  const isDarkColor = (color: string): boolean => {
+    if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') {
+      return false;
+    }
+    
+    // Parse rgb/rgba colors
+    const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (rgbMatch) {
+      const r = parseInt(rgbMatch[1]);
+      const g = parseInt(rgbMatch[2]);
+      const b = parseInt(rgbMatch[3]);
+      // Calculate relative luminance
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance < 0.5; // Dark if luminance < 50%
+    }
+    
+    return false;
+  };
   
-  // For gradient backgrounds, use transparent to preserve the gradient
+  // Function to detect dark background from gradient
+  const hasGradientWithDarkColors = (bgImage: string): boolean => {
+    if (!bgImage || !bgImage.includes('gradient')) return false;
+    
+    // Check for common dark gradient patterns
+    const darkPatterns = [
+      /#[0-6][0-9a-f]{5}/gi, // Dark hex colors starting with 0-6
+      /rgb\([0-9]{1,2},\s*[0-9]{1,2},\s*[0-9]{1,2}\)/gi, // Dark RGB values
+      /rgba\([0-9]{1,2},\s*[0-9]{1,2},\s*[0-9]{1,2}/gi, // Dark RGBA values
+    ];
+    
+    return darkPatterns.some(pattern => pattern.test(bgImage));
+  };
+  
+  // Check for dark text indicating a light background is expected
+  const hasDarkText = (): boolean => {
+    const textElements = element.querySelectorAll('*');
+    for (const el of textElements) {
+      const style = window.getComputedStyle(el as Element);
+      const color = style.color;
+      if (isDarkColor(color)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  // Check for light text indicating a dark background
+  const hasLightText = (): boolean => {
+    const textElements = element.querySelectorAll('*');
+    for (const el of textElements) {
+      const style = window.getComputedStyle(el as Element);
+      const color = style.color;
+      // Check for white or very light colors
+      if (color === 'rgb(255, 255, 255)' || 
+          color === 'rgba(255, 255, 255, 1)' || 
+          color === '#ffffff' || 
+          color === '#fff' ||
+          color.match(/rgb\(2[5-9][0-9]|rgb\(255/)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  // For gradient backgrounds, analyze the colors
   if (hasGradient) {
+    console.log('检测到渐变背景，分析颜色...');
+    
+    // If gradient has dark colors or content has light text, preserve the gradient
+    if (hasGradientWithDarkColors(bgImage) || hasLightText()) {
+      console.log('检测到深色渐变或白字，使用透明背景保持原样');
+      return 'transparent';
+    }
+    
+    // For light gradients, use transparent to preserve them
     return 'transparent';
   }
   
-  // For infographic content with solid backgrounds, use white for best compatibility
+  // For solid background colors
+  if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+    console.log('检测到实体背景色:', bgColor);
+    
+    // If it's a dark background color, preserve it
+    if (isDarkColor(bgColor)) {
+      console.log('检测到深色背景，保持原样');
+      return bgColor;
+    }
+    
+    // For light backgrounds, use the detected color
+    return bgColor;
+  }
+  
+  // For transparent or unset backgrounds, infer from text color
+  if (hasLightText()) {
+    console.log('检测到白字，使用深色背景');
+    // Common dark backgrounds for designs with white text
+    return '#1a1a1a';
+  }
+  
+  if (hasDarkText()) {
+    console.log('检测到深色文字，使用白色背景');
+    return '#ffffff';
+  }
+  
+  // For card-like designs with borders/shadows, use transparent to preserve the card effect
+  if (hasCardStyling) {
+    return 'transparent';
+  }
+  
+  // Default fallback
+  console.log('使用默认白色背景');
   return '#ffffff';
 };
 
@@ -142,9 +243,9 @@ export const generatePNG = async (
     return;
   }
 
-  // For infographic content, default to white background for better compatibility
+  // For infographic content, use intelligent background detection by default
   const defaultOptions: PngGenerationOptions = {
-    forceWhiteBackground: true, // Default to white background for most content
+    forceWhiteBackground: false, // Use intelligent background detection
     ...options // Allow user options to override defaults
   };
 
