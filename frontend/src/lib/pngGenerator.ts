@@ -370,6 +370,34 @@ export const generatePNG = async (
         page.style.position = 'relative';
         page.style.zIndex = '1000';
         
+        // Fix common layout issues for PNG generation
+        const pageStyle = window.getComputedStyle(page);
+        if (pageStyle.position === 'absolute') {
+          page.style.position = 'relative';
+        }
+        
+        // Fix absolute positioned children for better screenshot compatibility
+        const absoluteElements = page.querySelectorAll('[style*="position: absolute"], .footer');
+        absoluteElements.forEach((element: any) => {
+          const el = element as HTMLElement;
+          if (el.style.position === 'absolute' || el.classList.contains('footer')) {
+            const originalPosition = el.style.position;
+            const originalBottom = el.style.bottom;
+            const originalTop = el.style.top;
+            
+            // Store original values for restoration
+            el.setAttribute('data-original-position', originalPosition);
+            el.setAttribute('data-original-bottom', originalBottom);
+            el.setAttribute('data-original-top', originalTop);
+            
+            // Convert to static positioning for screenshots
+            el.style.position = 'static';
+            el.style.bottom = 'auto';
+            el.style.top = 'auto';
+            el.style.marginTop = '20px';
+          }
+        });
+        
         // Wait for the visibility changes to take effect
         await new Promise(resolve => setTimeout(resolve, 1000));
         
@@ -416,6 +444,25 @@ export const generatePNG = async (
           element.style.visibility = originalStyle.visibility;
           element.style.position = originalStyle.position;
           element.style.zIndex = originalStyle.zIndex;
+          
+          // Restore absolute positioned children
+          const absoluteElements = element.querySelectorAll('[data-original-position]');
+          absoluteElements.forEach((el: any) => {
+            const htmlEl = el as HTMLElement;
+            const originalPosition = htmlEl.getAttribute('data-original-position');
+            const originalBottom = htmlEl.getAttribute('data-original-bottom');
+            const originalTop = htmlEl.getAttribute('data-original-top');
+            
+            if (originalPosition) htmlEl.style.position = originalPosition;
+            if (originalBottom) htmlEl.style.bottom = originalBottom;
+            if (originalTop) htmlEl.style.top = originalTop;
+            htmlEl.style.marginTop = '';
+            
+            // Clean up data attributes
+            htmlEl.removeAttribute('data-original-position');
+            htmlEl.removeAttribute('data-original-bottom');
+            htmlEl.removeAttribute('data-original-top');
+          });
         });
         
         // Brief pause between pages
