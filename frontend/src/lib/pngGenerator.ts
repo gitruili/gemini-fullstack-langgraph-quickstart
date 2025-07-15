@@ -189,8 +189,8 @@ export const generatePNG = async (
     // Brief wait for final rendering
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Find all pages in the HTML with comprehensive selectors
-    const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page, [class*="page"], [data-page]');
+    // Find all pages in the HTML with precise selectors - only actual page elements
+    const pages = iframeBody.querySelectorAll('.page:not(#pages-container):not(.page-indicator):not([id="page-indicator"])');
     console.log(`发现 ${pages.length} 个页面元素`);
     
     // Log all found page elements for debugging
@@ -203,15 +203,24 @@ export const generatePNG = async (
     const validPages = Array.from(pages).filter((page: Element) => {
       const element = page as HTMLElement;
       
-      // Skip navigation and indicator elements
+      // Skip navigation, indicator elements, and containers
       if (element.id === 'page-indicator' || 
+          element.id === 'pages-container' ||
           element.id === 'page-container' ||
           element.classList.contains('page-indicator') ||
           element.classList.contains('navigation') ||
           element.classList.contains('nav') ||
           element.classList.contains('controls') ||
-          element.tagName.toLowerCase() === 'nav') {
+          element.classList.contains('canvas-container') ||
+          element.tagName.toLowerCase() === 'nav' ||
+          element.tagName.toLowerCase() === 'button') {
         console.log(`跳过导航元素: ${element.id || element.className}`);
+        return false;
+      }
+      
+      // Only process elements that are actually page content (have specific page IDs)
+      if (!element.id || !element.id.match(/^page-?\d+$/)) {
+        console.log(`跳过非页面元素: ${element.id || element.className}`);
         return false;
       }
       
