@@ -193,17 +193,29 @@ export const generatePNG = async (
     const pages = iframeBody.querySelectorAll('[id^="page-"], [id="page1"], [id="page2"], [id="page3"], [id="page4"], [id="page5"], [id="page6"], [id="page7"], [id="page8"], [id="page9"], [id="page10"], .page, .infographic-page');
     console.log(`发现 ${pages.length} 个页面元素`);
     
-    // Filter out empty or invalid page elements
+    // Filter out empty or invalid page elements and navigation elements
     const validPages = Array.from(pages).filter((page: Element) => {
       const element = page as HTMLElement;
+      
+      // Skip navigation and indicator elements
+      if (element.id === 'page-indicator' || 
+          element.id === 'page-container' ||
+          element.classList.contains('page-indicator') ||
+          element.classList.contains('navigation') ||
+          element.classList.contains('nav')) {
+        console.log(`跳过导航元素: ${element.id || element.className}`);
+        return false;
+      }
+      
       // Check if element has meaningful content
-      const hasContent = element.textContent && element.textContent.trim().length > 10;
-      const hasChild = element.children.length > 0;
-      const hasMinHeight = element.offsetHeight > 100;
+      const hasContent = element.textContent && element.textContent.trim().length > 50;
+      const hasChild = element.children.length > 1;
+      const hasMinHeight = element.offsetHeight > 200;
+      const isVisible = element.offsetWidth > 0 && element.offsetHeight > 0;
       
-      console.log(`页面 ${element.id || element.className} - 内容: ${hasContent}, 子元素: ${hasChild}, 高度: ${element.offsetHeight}`);
+      console.log(`页面 ${element.id || element.className} - 内容: ${hasContent}, 子元素: ${hasChild}, 高度: ${element.offsetHeight}, 可见: ${isVisible}`);
       
-      return hasContent || hasChild || hasMinHeight;
+      return (hasContent || hasChild) && hasMinHeight && isVisible;
     });
     
     console.log(`过滤后有效页面数量: ${validPages.length}`);

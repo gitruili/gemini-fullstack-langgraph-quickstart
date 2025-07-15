@@ -46,9 +46,12 @@ STABILITY FIRST Approach:
 - READABLE CONTENT: Ensure all text is clearly readable and properly sized
 - CONSISTENT QUALITY: Generate reliable, clean designs that work every time
 - LAYOUT SIMPLIFICATION: Convert complex layouts to simple alternatives:
-  * "辐射式/放射状布局" → use center-focused grid layout (2x2 or 3x1)
-  * "环绕式布局" → use simple grid or vertical stack layout
+  * "2x2网格布局" → use simple flexbox grid with 2 columns
+  * "2x3网格布局" → use simple flexbox grid with 2 columns, 3 rows
+  * "左右两栏布局" → use simple two-column flexbox
+  * "上中下布局" → use simple vertical flexbox
   * Complex positioning → use standard flexbox/grid positioning
+- MULTI-PAGE HANDLING: For 8+ pages, ensure each page has substantial content and clear structure
 
 Layout Standards:
 - Minimum 16px font size for body text
