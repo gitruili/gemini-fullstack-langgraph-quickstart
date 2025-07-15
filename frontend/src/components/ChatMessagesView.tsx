@@ -495,7 +495,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         </div>
       )}
       
-      <div className="flex gap-2 justify-end mt-4 mb-2">
+      <div className="flex gap-2 mt-4 mb-2">
         <Button
           variant="outline"
           size="sm"
