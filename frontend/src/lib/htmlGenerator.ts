@@ -33,26 +33,36 @@ CRITICAL Design Quality Requirements:
 - VISUAL APPEAL: Use vibrant gradients, colorful backgrounds, and clean layouts
 - SPECIFIC ICONS: Use concrete, recognizable emojis exactly as specified
 
+CONTENT COMPLETENESS Requirements:
+- INCLUDE ALL CONTENT: Every text, icon, and element mentioned in blueprint must be included
+- FULL IMPLEMENTATION: Don't create sparse layouts - include all described content
+- PROPER CONTENT DENSITY: Ensure pages have substantial, readable content
+- ALL SPECIFIED ELEMENTS: Include every icon, color, background, and text mentioned
+
 STABILITY FIRST Approach:
 - SIMPLE LAYOUTS: Use straightforward flexbox or grid layouts that render reliably
 - CLEAR STRUCTURE: Each page should follow a predictable, clean structure
 - AVOID COMPLEX POSITIONING: Don't use intricate absolute positioning or complex transforms
 - READABLE CONTENT: Ensure all text is clearly readable and properly sized
 - CONSISTENT QUALITY: Generate reliable, clean designs that work every time
+- LAYOUT SIMPLIFICATION: Convert complex layouts to simple alternatives:
+  * "辐射式/放射状布局" → use center-focused grid layout (2x2 or 3x1)
+  * "环绕式布局" → use simple grid or vertical stack layout
+  * Complex positioning → use standard flexbox/grid positioning
 
 Layout Standards:
 - Minimum 16px font size for body text
 - Minimum 20px font size for headings
 - Minimum 12px padding between text elements
-- Use the background colors specified in blueprint when provided
-- Keep layouts clean, balanced, and visually appealing
-- Include specified icons and basic visual elements
+- Use the exact background colors specified in blueprint
+- Include all specified icons and visual elements
+- Implement the basic layout structure described (but keep it simple)
 
 Code requirements:
 - All pages must be included in a single HTML document
 - Use simplified CSS class names and structure
 - Generate complete, functional code that renders reliably
-- Focus on stability and readability over complex visual effects
+- Include ALL content mentioned in blueprint while keeping layout simple
 
 Generate a complete runnable HTML document including all pages:
 
