@@ -189,9 +189,15 @@ export const generatePNG = async (
     // Brief wait for final rendering
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Find all pages in the HTML with more precise selectors
-    const pages = iframeBody.querySelectorAll('[id^="page-"], [id="page1"], [id="page2"], [id="page3"], [id="page4"], [id="page5"], [id="page6"], [id="page7"], [id="page8"], [id="page9"], [id="page10"], .page, .infographic-page');
+    // Find all pages in the HTML with comprehensive selectors
+    const pages = iframeBody.querySelectorAll('[id*="page"], .page, .infographic-page, [class*="page"], [data-page]');
     console.log(`发现 ${pages.length} 个页面元素`);
+    
+    // Log all found page elements for debugging
+    pages.forEach((page, index) => {
+      const element = page as HTMLElement;
+      console.log(`页面 ${index + 1}: id="${element.id}", class="${element.className}", 内容长度: ${element.textContent?.trim().length || 0}, 高度: ${element.offsetHeight}`);
+    });
     
     // Filter out empty or invalid page elements and navigation elements
     const validPages = Array.from(pages).filter((page: Element) => {
@@ -202,20 +208,43 @@ export const generatePNG = async (
           element.id === 'page-container' ||
           element.classList.contains('page-indicator') ||
           element.classList.contains('navigation') ||
-          element.classList.contains('nav')) {
+          element.classList.contains('nav') ||
+          element.classList.contains('controls') ||
+          element.tagName.toLowerCase() === 'nav') {
         console.log(`跳过导航元素: ${element.id || element.className}`);
         return false;
       }
       
-      // Check if element has meaningful content
-      const hasContent = element.textContent && element.textContent.trim().length > 50;
-      const hasChild = element.children.length > 1;
-      const hasMinHeight = element.offsetHeight > 200;
-      const isVisible = element.offsetWidth > 0 && element.offsetHeight > 0;
+      // More lenient content and visibility checks
+      const hasContent = element.textContent && element.textContent.trim().length > 20; // Reduced from 50
+      const hasChild = element.children.length > 0; // Reduced from 1
+      const hasMinHeight = element.offsetHeight > 100; // Reduced from 200
+      const hasMinWidth = element.offsetWidth > 100;
       
-      console.log(`页面 ${element.id || element.className} - 内容: ${hasContent}, 子元素: ${hasChild}, 高度: ${element.offsetHeight}, 可见: ${isVisible}`);
+      // Force visibility for hidden pages (they might be hidden by default navigation)
+      const originalDisplay = element.style.display;
+      const originalVisibility = element.style.visibility;
+      const originalOpacity = element.style.opacity;
       
-      return (hasContent || hasChild) && hasMinHeight && isVisible;
+      // Temporarily show the element to check its actual dimensions
+      element.style.display = 'block';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      
+      const actualHeight = element.offsetHeight;
+      const actualWidth = element.offsetWidth;
+      const actualContent = element.textContent?.trim().length || 0;
+      
+      // Restore original visibility
+      element.style.display = originalDisplay;
+      element.style.visibility = originalVisibility;
+      element.style.opacity = originalOpacity;
+      
+      const isValidPage = (hasContent || hasChild) && actualHeight > 100 && actualWidth > 100;
+      
+      console.log(`页面 ${element.id || element.className} - 内容: ${actualContent}字符, 子元素: ${element.children.length}, 尺寸: ${actualWidth}x${actualHeight}, 有效: ${isValidPage}`);
+      
+      return isValidPage;
     });
     
     console.log(`过滤后有效页面数量: ${validPages.length}`);
@@ -312,38 +341,57 @@ export const generatePNG = async (
       
       for (let i = 0; i < validPages.length; i++) {
         const page = validPages[i] as HTMLElement;
-        console.log(`正在截取第 ${i + 1} 页...`);
+        console.log(`正在截取第 ${i + 1} 页，共 ${validPages.length} 页...`);
         
-        // Make sure only this page is visible
-        validPages.forEach((p, index) => {
+        // Store original styles for all pages first
+        const originalStyles = validPages.map((p) => {
           const element = p as HTMLElement;
-          if (index === i) {
-            element.style.display = 'flex';
-            element.style.opacity = '1';
-            element.style.visibility = 'visible';
-          } else {
-            element.style.display = 'none';
-            element.style.opacity = '0';
-            element.style.visibility = 'hidden';
-          }
+          return {
+            display: element.style.display,
+            opacity: element.style.opacity,
+            visibility: element.style.visibility,
+            position: element.style.position,
+            zIndex: element.style.zIndex,
+          };
         });
         
+        // Hide all pages first
+        validPages.forEach((p) => {
+          const element = p as HTMLElement;
+          element.style.display = 'none';
+          element.style.opacity = '0';
+          element.style.visibility = 'hidden';
+        });
+        
+        // Show only the current page
+        page.style.display = 'block';
+        page.style.opacity = '1';
+        page.style.visibility = 'visible';
+        page.style.position = 'relative';
+        page.style.zIndex = '1000';
+        
         // Wait for the visibility changes to take effect
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         try {
+          // Calculate dimensions for this specific page
+          const dimensions = calculateOptimalDimensions(page);
+          const background = detectBackground(page, defaultOptions);
+          
+          console.log(`第 ${i + 1} 页尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
+          
           const dataUrl = await htmlToImage.toPng(page, {
-            width: 448,
-            height: 597,
+            width: dimensions.width,
+            height: dimensions.height,
             style: {
               transform: 'scale(1)',
               transformOrigin: 'top left',
             },
             quality: 1.0,
             pixelRatio: 2,
-            backgroundColor: '#ffffff',
-            // Simplified options for stability
-            cacheBust: false,
+            backgroundColor: background,
+            cacheBust: true, // Force refresh for each page
+            skipAutoScale: true,
           });
           
           pngDataUrls.push(dataUrl);
@@ -353,11 +401,25 @@ export const generatePNG = async (
           const blob = await response.blob();
           
           zip.file(`page-${i + 1}.png`, blob);
-          console.log(`第 ${i + 1} 页截取成功`);
+          console.log(`第 ${i + 1} 页截取成功 (${blob.size} bytes)`);
         } catch (pageError) {
           console.error(`第 ${i + 1} 页截取失败:`, pageError);
           callbacks.setPngError(`第 ${i + 1} 页截取失败: ${pageError instanceof Error ? pageError.message : '未知错误'}`);
         }
+        
+        // Restore original styles for all pages
+        validPages.forEach((p, index) => {
+          const element = p as HTMLElement;
+          const originalStyle = originalStyles[index];
+          element.style.display = originalStyle.display;
+          element.style.opacity = originalStyle.opacity;
+          element.style.visibility = originalStyle.visibility;
+          element.style.position = originalStyle.position;
+          element.style.zIndex = originalStyle.zIndex;
+        });
+        
+        // Brief pause between pages
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
       
       // Prepare filename components
