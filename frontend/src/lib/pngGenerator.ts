@@ -174,23 +174,20 @@ export const generatePNG = async (
     // Wait for the iframe to fully load
     await new Promise((resolve) => {
       iframe.onload = resolve;
-      // Fallback timeout
-      setTimeout(resolve, 5000);
+      // Balanced timeout for stability
+      setTimeout(resolve, 3000);
     });
     
-    // Additional wait for fonts and styles to load - increased for stability
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Additional wait for any CSS animations or transitions to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for fonts and styles to load
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     const iframeBody = iframe.contentDocument?.body;
     if (!iframeBody) {
       throw new Error('无法访问iframe内容');
     }
     
-    // Wait for any potential font loading or CSS recalculation
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Brief wait for final rendering
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Find all pages in the HTML with more precise selectors
     const pages = iframeBody.querySelectorAll('[id^="page-"], [id="page1"], [id="page2"], [id="page3"], [id="page4"], [id="page5"], [id="page6"], [id="page7"], [id="page8"], [id="page9"], [id="page10"], .page, .infographic-page');
@@ -310,11 +307,8 @@ export const generatePNG = async (
           }
         });
         
-        // Wait a bit for the visibility changes to take effect
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Additional wait to ensure page is fully rendered
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for the visibility changes to take effect
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         try {
           const dataUrl = await htmlToImage.toPng(page, {
@@ -327,9 +321,8 @@ export const generatePNG = async (
             quality: 1.0,
             pixelRatio: 2,
             backgroundColor: '#ffffff',
-            skipFonts: false,
-            // Add more options for stability
-            cacheBust: true,
+            // Simplified options for stability
+            cacheBust: false,
           });
           
           pngDataUrls.push(dataUrl);

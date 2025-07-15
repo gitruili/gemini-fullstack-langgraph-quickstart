@@ -32,30 +32,28 @@ CRITICAL Design Quality Requirements:
 - Prevent text overlap: use sufficient margins and padding between elements
 - VISUAL RICHNESS: Use vibrant gradients, colorful backgrounds, and engaging layouts
 - SPECIFIC ICONS: Use concrete, recognizable emojis (🚀📱💡🎯📊🔧) not abstract symbols
-- ENGAGING DESIGN: Create visually appealing sections with colorful cards, borders, and backgrounds
 
-VISUAL DENSITY & STABILITY Requirements:
-- RICH CONTENT: Each page must have substantial visual content, avoid empty/sparse layouts
-- CONSISTENT QUALITY: Maintain consistent design quality across all pages
-- MULTIPLE ELEMENTS: Include 3-5 distinct visual elements per page minimum
-- BALANCED LAYOUT: Use proper proportions, avoid cramped or overly spacious designs
-- STRUCTURED HIERARCHY: Clear visual hierarchy with headers, subheaders, and content sections
-- DECORATIVE ELEMENTS: Add borders, shadows, gradients, and visual details for richness
-
-Layout Standards:
+Core Layout Standards:
 - Minimum 16px font size for body text
 - Minimum 20px font size for headings
-- Minimum 8px padding between text elements
-- Use colorful gradient backgrounds (#4F46E5 to #7C3AED, #EF4444 to #F97316, etc.)
-- Ensure proper z-index and positioning to prevent overlap
-- Add visual depth with shadows, borders, and layered elements
+- Minimum 12px padding between text elements
+- Use colorful gradient backgrounds for visual appeal
+- Ensure proper positioning and avoid layout overflow
+- Keep layouts simple but visually appealing
+
+STABILITY Requirements:
+- SIMPLE LAYOUTS: Use straightforward flexbox or grid layouts that work reliably
+- CONSISTENT STRUCTURE: Each page should follow a clear, predictable structure
+- AVOID COMPLEX POSITIONING: Don't use complex absolute positioning or transforms
+- READABLE CONTENT: Ensure all text is clearly readable and properly sized
+- BALANCED DESIGN: Use appropriate white space and content density
 
 Code requirements:
 - Compact and concise code structure, minimal comments
 - All pages must be included in a single HTML document
 - Use simplified CSS class names and structure
-- Ensure all pages are properly implemented
-- Generate complete, functional code that renders consistently
+- Ensure all pages are properly implemented and render correctly
+- Focus on reliability over visual complexity
 
 Generate a complete runnable HTML document including all pages:
 
@@ -77,22 +75,23 @@ ${blueprint}`;
       responseMimeType: 'text/plain',
       systemInstruction: [
         {
-          text: `You are an expert frontend developer and UI designer with a focus on high-quality, accessible design. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints.
+          text: `You are an expert frontend developer and UI designer with a focus on creating stable, reliable designs. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints.
 
-Key Principles:
-- ALWAYS ensure high contrast colors (minimum 4.5:1 ratio) for readability
-- Create visually engaging and modern designs with proper spacing
-- Use vibrant colors and gradients to avoid bland, boring layouts
-- Ensure no text overlap or visual clutter
-- Prioritize user experience and visual appeal
-- Always provide complete, runnable code with all specified pages
+Core Principles:
+- STABILITY FIRST: Prioritize layouts that render consistently and reliably
+- HIGH CONTRAST: Ensure minimum 4.5:1 color contrast for readability
+- SIMPLE BUT ENGAGING: Create visually appealing designs without overly complex layouts
+- CLEAR STRUCTURE: Use straightforward flexbox/grid layouts that work properly
+- READABLE CONTENT: Ensure all text is properly sized and clearly visible
+- RELIABLE CODE: Generate functional code that renders correctly every time
 
-CRITICAL: Ensure VISUAL RICHNESS and STABILITY
-- Every page must have substantial visual content - never generate sparse/empty layouts
-- Maintain consistent quality across all pages
-- Include multiple visual elements, proper hierarchy, and decorative details
-- Use proper proportions and balanced layouts
-- Generate functional, complete code that renders reliably every time`,
+AVOID:
+- Complex absolute positioning or intricate transforms
+- Overly dense layouts that cause overlap or rendering issues
+- Layouts that might break or render incorrectly
+- Tiny fonts or poor contrast that affects readability
+
+Always provide complete, runnable code with all specified pages that render reliably.`,
         }
       ],
     };
