@@ -23,6 +23,24 @@ Requirements:
 6. Modern CSS: Flexbox, Grid, gradients
 7. Font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
 
+CRITICAL Design Quality Requirements:
+- HIGH CONTRAST COLORS: Ensure text has minimum 4.5:1 contrast ratio against backgrounds
+- Main text should be #1a1a1a or darker on light backgrounds
+- Headings should be #000000 or very dark colors
+- Avoid light gray (#999, #ccc) text - use dark colors (#333, #444) minimum
+- PROPER SPACING: Ensure adequate line-height (1.4-1.6) and letter-spacing
+- Prevent text overlap: use sufficient margins and padding between elements
+- VISUAL RICHNESS: Use vibrant gradients, colorful backgrounds, and engaging layouts
+- SPECIFIC ICONS: Use concrete, recognizable emojis (🚀📱💡🎯📊🔧) not abstract symbols
+- ENGAGING DESIGN: Create visually appealing sections with colorful cards, borders, and backgrounds
+
+Layout Standards:
+- Minimum 16px font size for body text
+- Minimum 20px font size for headings
+- Minimum 8px padding between text elements
+- Use colorful gradient backgrounds (#4F46E5 to #7C3AED, #EF4444 to #F97316, etc.)
+- Ensure proper z-index and positioning to prevent overlap
+
 Code requirements:
 - Compact and concise code structure, minimal comments
 - All pages must be included in a single HTML document
@@ -49,7 +67,15 @@ ${blueprint}`;
       responseMimeType: 'text/plain',
       systemInstruction: [
         {
-          text: `You are an expert frontend developer and UI designer. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints. Always provide complete, runnable code with all specified pages.`,
+          text: `You are an expert frontend developer and UI designer with a focus on high-quality, accessible design. Generate complete, functional HTML+CSS+JavaScript code based on design blueprints.
+
+Key Principles:
+- ALWAYS ensure high contrast colors (minimum 4.5:1 ratio) for readability
+- Create visually engaging and modern designs with proper spacing
+- Use vibrant colors and gradients to avoid bland, boring layouts
+- Ensure no text overlap or visual clutter
+- Prioritize user experience and visual appeal
+- Always provide complete, runnable code with all specified pages`,
         }
       ],
     };
@@ -173,7 +199,7 @@ const generateFallbackHTML = (content: string): string => {
             height: 597px; 
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #ffffff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 24px;
         }
         .container {
@@ -181,66 +207,89 @@ const generateFallbackHTML = (content: string): string => {
             height: 100%;
             display: flex;
             flex-direction: column;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         .header {
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 3px solid #4F46E5;
+            text-align: center;
         }
         .header h1 {
-            font-size: 1.6rem;
-            color: #1e293b;
+            font-size: 1.8rem;
+            color: #1a1a1a;
             margin-bottom: 8px;
-            line-height: 1.3;
+            line-height: 1.4;
+            font-weight: 700;
         }
         .header .icon {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
+            font-size: 2rem;
+            margin-bottom: 12px;
+            display: block;
         }
         .content-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 16px;
             flex: 1;
         }
         .content-item {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            padding: 18px;
             border-left: 4px solid #6366f1;
-            font-size: 0.85rem;
-            line-height: 1.4;
-            color: #374151;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #1a1a1a;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
+        }
+        .content-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
         }
         .content-item .bullet {
-            color: #6366f1;
+            color: #4F46E5;
             margin-right: 8px;
             font-weight: bold;
+            font-size: 1.1rem;
         }
         .highlight {
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            background: linear-gradient(135deg, #fef3c7 0%, #f59e0b 100%);
             border-left-color: #f59e0b;
+            color: #1a1a1a;
+        }
+        .highlight:nth-child(even) {
+            background: linear-gradient(135deg, #dcfce7 0%, #16a34a 100%);
+            border-left-color: #16a34a;
+        }
+        .highlight:nth-child(3n) {
+            background: linear-gradient(135deg, #fce7f3 0%, #ec4899 100%);
+            border-left-color: #ec4899;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="icon">📋</div>
+            <div class="icon">🚀</div>
             <h1>${title.slice(0, 50)}</h1>
         </div>
-                 <div class="content-grid">
-             ${listItems.map((item, i) => {
-               const isHighlight = i % 3 === 0 ? 'highlight' : '';
-               return '<div class="content-item ' + isHighlight + '">' +
-                 '<span class="bullet">•</span>' +
-                 item.slice(0, 80) +
-               '</div>';
-             }).join('')}
-         </div>
+        <div class="content-grid">
+            ${listItems.map((item, i) => {
+              const isHighlight = i % 2 === 0 ? 'highlight' : '';
+              return `<div class="content-item ${isHighlight}">
+                <span class="bullet">•</span>
+                ${item.slice(0, 80)}
+              </div>`;
+            }).join('')}
+        </div>
     </div>
 </body>
 </html>`;

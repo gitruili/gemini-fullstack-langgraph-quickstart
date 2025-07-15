@@ -32,10 +32,10 @@ ${content}
 布局：[具体布局描述]
 背景：[背景色彩和样式]
 内容：[具体内容安排]
-视觉元素：[图标、图表、动效等]
+视觉元素：[图标、图表、静态图形等]
 色彩：[色彩搭配方案]
 
-要求：
+设计要求：
 1. 生成3-15页的完整设计蓝图
 2. 第1页必须是封面页面（Hero Page）
 3. 第2页必须是概览页面（Executive Summary）
@@ -44,6 +44,19 @@ ${content}
 6. 适合448×597px的固定画布尺寸
 7. 使用emoji图标和CSS渐变背景
 8. 页面间要有逻辑连贯性
+
+视觉元素设计原则（重要）：
+- 只描述静态视觉元素，避免动态描述（如"挥舞"、"流动"、"移动"、"闪烁"等）
+- 使用具体的emoji图标组合（🚀📱💡🎯📊🔧⚡🌟等）
+- 描述固定的图形布局（如"居中放置的图标"、"对称排列的元素"、"层叠的卡片布局"）
+- 强调色彩渐变和静态装饰效果（如"渐变光晕"、"装饰性边框"、"背景几何图案"）
+- 使用静态但吸引人的构图（如"放射状布局"、"对称构图"、"黄金比例布局"）
+
+静态视觉元素示例：
+✅ 好的描述："中央放置大型🚀图标，周围环绕6个小图标呈圆形排列"
+✅ 好的描述："顶部横幅式渐变背景，配以左右对称的📊图表图标"
+✅ 好的描述："三层卡片式布局，每层使用不同的渐变色背景"
+❌ 避免："手臂挥舞的剪影"、"流动的代码"、"跳跃的数据"、"闪烁的光效"
 
 请根据内容的实际特点和信息量来确定页面数量和类型。
 
@@ -67,11 +80,15 @@ ${content}
 3. blueprint字段不要使用数组格式，必须是单个字符串
 4. xiaohongshu.titles包含3个备选标题，每个标题须在20字以内（包括标点符号和图标）
 5. xiaohongshu.content包含完整的正文内容，包括hashtags
-6. 小红书内容要求简洁有趣，符合平台调性，标题吸引点击，正文有价值且易读，标签要热门且相关。
+6. 小红书内容要求简洁有趣，符合平台调性，标题吸引点击，正文有价值且易读，标签要热门且相关
+7. 视觉元素描述必须是静态的，能够在PNG图片中完美呈现
 
-不要：
+严格禁止：
 1. 不要有二维码，扫码关注之类的内容
-2. 不要用第一人称 - 我来进行描述`;
+2. 不要用第一人称 - 我来进行描述
+3. 不要描述动态效果（动画、移动、闪烁、流动等）
+4. 不要描述人物动作（挥舞、跳跃、行走等）
+5. 不要使用模糊的抽象描述，要具体明确`;
 
   try {
     const ai = new GoogleGenAI({
@@ -85,7 +102,16 @@ ${content}
       responseMimeType: 'application/json',
       systemInstruction: [
         {
-          text: `You are a professional infographic designer and Xiaohongshu content creator. You must respond in valid JSON format only. Do not include any explanation or additional text outside of the JSON structure. Return exactly the format requested in the prompt.`,
+          text: `You are a professional infographic designer and Xiaohongshu content creator with expertise in static visual design. You must respond in valid JSON format only. 
+
+Critical Requirements:
+- Only describe STATIC visual elements that work perfectly in PNG images
+- Avoid any dynamic, animated, or motion-based descriptions
+- Focus on fixed layouts, positioned elements, and static compositions
+- Use concrete emoji icons and specific positioning descriptions
+- Ensure all visual elements are clearly defined and implementable in static HTML/CSS
+
+Do not include any explanation or additional text outside of the JSON structure. Return exactly the format requested in the prompt.`,
         }
       ],
     };
@@ -300,50 +326,53 @@ const generateFallbackBlueprint = (content: string): BlueprintResult => {
 页面标题：${firstSentence.slice(0, 30)}
 核心内容与视觉构思
 
-布局：垂直居中全屏展示
-背景：渐变色 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500
-内容：主标题 + 副标题
-视觉元素：🔍 📊 组合图标
-色彩：白色文字，渐变背景
+布局：垂直居中全屏展示，黄金比例布局
+背景：css(linear-gradient(135deg, #667eea 0%, #764ba2 100%))
+内容：主标题 + 副标题 + 核心价值点
+视觉元素：中央放置大型🚀图标，底部对称排列📊💡🎯三个小图标，四周装饰性渐变光晕
+色彩：白色主文字，金色强调色，深蓝渐变背景
 
 信息图 2 / 3
 页面类型：概览（Executive Summary）
 页面标题：核心要点总览
 核心内容与视觉构思
 
-布局：左右对分布局
-背景：bg-slate-50
-内容：关键洞察与分析要点
-视觉元素：概念图谱展示
-色彩：text-indigo-600 主色调
+布局：上下分层式布局，顶部标题区域，中间内容卡片网格
+背景：css(linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%))
+内容：关键洞察与分析要点，3-4个核心概念卡片
+视觉元素：顶部横幅式🎯图标，中间采用2x2网格布局，每个卡片配有📈📊💎🔧等静态图标
+色彩：深色文字(#1a1a1a)，彩色卡片背景，统一的圆角设计
 
 信息图 3 / 3
 页面类型：内容详情
-页面标题：详细分析
+页面标题：详细分析与应用
 核心内容与视觉构思
 
-布局：标准内容布局
-背景：bg-white
-内容：核心概念和实际应用
-视觉元素：相关图标和图表
-色彩：重点内容 bg-yellow-50 突出`;
+布局：左右对称式布局，中轴线设计
+背景：css(linear-gradient(45deg, #f0f9ff 0%, #e0e7ff 100%))
+内容：核心概念详解和实际应用案例
+视觉元素：左侧放置💡创新图标，右侧配以📋列表图标，中间连接线条设计，底部⭐收藏提示图标
+色彩：主题蓝色系(#3b82f6)，重点内容使用暖色强调(#f59e0b)，保持高对比度`;
 
   const xiaohongshuContent = `今天给大家分享一个超实用的内容！✨
 
 📋 核心要点：
-• 内容清晰易懂
-• 实用性强
-• 适合收藏学习
+• 内容清晰易懂，逻辑性强
+• 实用性强，立即可用
+• 设计美观，适合收藏学习
 
-💡 建议大家：
-收藏起来慢慢看，对你一定有帮助！
+💡 实用建议：
+这些要点都是经过验证的，建议大家收藏起来慢慢消化！
+
+🎯 关键提醒：
+记得点赞收藏，这样就不会错过啦~
 
 #干货分享 #学习笔记 #实用技巧 #知识分享 #效率提升 #生活技能 #经验总结 #必看推荐 #涨知识`;
 
   const xiaohongshuTitles = [
-    `🚀 ${firstSentence.slice(0, 20)}...超详细解析！`,
-    `📊 一看就懂的${firstSentence.slice(0, 15)}攻略`,
-    `💡 ${firstSentence.slice(0, 18)}干货分享`
+    `🚀 ${firstSentence.slice(0, 16)}...超详细解析！`,
+    `📊 一看就懂的${firstSentence.slice(0, 13)}全攻略`,
+    `💡 收藏必备！${firstSentence.slice(0, 15)}干货`
   ];
 
   return {
