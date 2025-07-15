@@ -17,6 +17,12 @@ export interface PngAdditionalContent {
   userQuestion: string;
 }
 
+// PNG generation options
+export interface PngGenerationOptions {
+  forceWhiteBackground?: boolean; // Force white background instead of auto-detection
+  customBackgroundColor?: string; // Custom background color (hex)
+}
+
 // Helper function to create safe filename from user question
 const createSafeFilename = (userQuestion: string): string => {
   return userQuestion
@@ -75,22 +81,46 @@ const calculateOptimalDimensions = (element: HTMLElement): { width: number; heig
 };
 
 // Helper function to detect if element has custom background
-const detectBackground = (element: HTMLElement): string => {
+const detectBackground = (element: HTMLElement, options?: PngGenerationOptions): string => {
+  // If user forces white background, return white
+  if (options?.forceWhiteBackground) {
+    return '#ffffff';
+  }
+  
+  // If user provides custom background color, use it
+  if (options?.customBackgroundColor) {
+    return options.customBackgroundColor;
+  }
+  
   const computedStyle = window.getComputedStyle(element);
   const bgColor = computedStyle.backgroundColor;
   const bgImage = computedStyle.backgroundImage;
   
-  // If element has non-transparent background, use transparent for PNG
-  if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+  console.log('检测背景 - bgColor:', bgColor, 'bgImage:', bgImage);
+  
+  // Check if this looks like a card or infographic design
+  const hasCardStyling = computedStyle.borderRadius !== '0px' || 
+                        computedStyle.boxShadow !== 'none' ||
+                        computedStyle.border !== '0px none';
+  
+  // Check if element has gradient background
+  const hasGradient = bgImage && (bgImage.includes('gradient') || 
+                      bgImage.includes('linear-gradient') || 
+                      bgImage.includes('radial-gradient'));
+  
+  console.log('设计特征 - hasCardStyling:', hasCardStyling, 'hasGradient:', hasGradient);
+  
+  // For card-like designs with borders/shadows, use transparent to preserve the card effect
+  if (hasCardStyling && (bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'transparent')) {
     return 'transparent';
   }
   
-  // If element has background image, use transparent
-  if (bgImage !== 'none') {
+  // For gradient backgrounds, use transparent to preserve the gradient
+  if (hasGradient) {
     return 'transparent';
   }
   
-  // Default to white for elements without background
+  // For infographic content with solid backgrounds, use white for best compatibility
   return '#ffffff';
 };
 
@@ -104,12 +134,19 @@ export interface PngAuditCallbacks {
 export const generatePNG = async (
   generatedHTML: string,
   callbacks: PngGenerationCallbacks,
-  additionalContent?: PngAdditionalContent
+  additionalContent?: PngAdditionalContent,
+  options?: PngGenerationOptions
 ): Promise<void> => {
   if (!generatedHTML) {
     alert('请先生成HTML代码');
     return;
   }
+
+  // For infographic content, default to white background for better compatibility
+  const defaultOptions: PngGenerationOptions = {
+    forceWhiteBackground: true, // Default to white background for most content
+    ...options // Allow user options to override defaults
+  };
 
   callbacks.setIsGeneratingPNG(true);
   callbacks.setPngError(null);
@@ -177,7 +214,7 @@ export const generatePNG = async (
       
       // Calculate optimal dimensions for the body
       const dimensions = calculateOptimalDimensions(iframeBody);
-      const background = detectBackground(iframeBody);
+      const background = detectBackground(iframeBody, defaultOptions);
       
       console.log(`优化尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
       
@@ -273,7 +310,7 @@ export const generatePNG = async (
         try {
           // Calculate optimal dimensions for this page
           const dimensions = calculateOptimalDimensions(page);
-          const background = detectBackground(page);
+          const background = detectBackground(page, defaultOptions);
           
           console.log(`第 ${i + 1} 页优化尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
           
