@@ -14,7 +14,8 @@ import {
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
 import { BlueprintResult, generateBlueprint } from '@/lib/blueprintGenerator';
 import { generateHTML, generateFallbackHTML } from '@/lib/htmlGenerator';
-import { generatePNG, auditAndFixPNG, PngGenerationCallbacks, PngAuditCallbacks } from '@/lib/pngGenerator';
+import { generatePNG, auditAndFixPNG, PngGenerationCallbacks, PngAuditCallbacks, PngAdditionalContent } from '@/lib/pngGenerator';
+import { extractAIResponseContent } from '@/App';
 
 // Markdown component props type from former ReportView
 type MdComponentProps = {
@@ -171,6 +172,7 @@ interface AiMessageBubbleProps {
   mdComponents: typeof mdComponents;
   handleCopy: (text: string, messageId: string) => void;
   copiedMessageId: string | null;
+  messages: Message[];
 }
 
 // AiMessageBubble Component
@@ -183,6 +185,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   mdComponents,
   handleCopy,
   copiedMessageId,
+  messages,
 }) => {
   const [generatedBlueprint, setGeneratedBlueprint] = useState<BlueprintResult | null>(null);
   const [generatedHTML, setGeneratedHTML] = useState<string | null>(null);
@@ -312,7 +315,30 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       setGeneratedPNGs
     };
     
-    await generatePNG(generatedHTML || '', callbacks);
+    // Extract AI response content and user question
+    const { aiResponse, userQuestion } = extractAIResponseContent(messages);
+    
+    // Extract Xiaohongshu content
+    let xiaohongshuTitle = '';
+    let xiaohongshuBody = '';
+    
+    if (generatedBlueprint?.xiaohongshu) {
+      // Use the first title from the titles array
+      xiaohongshuTitle = generatedBlueprint.xiaohongshu.titles.length > 0 
+        ? generatedBlueprint.xiaohongshu.titles[0] 
+        : '';
+      xiaohongshuBody = generatedBlueprint.xiaohongshu.content || '';
+    }
+    
+    // Create additional content object
+    const additionalContent: PngAdditionalContent = {
+      aiResponseContent: aiResponse,
+      xiaohongshuTitle,
+      xiaohongshuBody,
+      userQuestion
+    };
+    
+    await generatePNG(generatedHTML || '', callbacks, additionalContent);
   };
 
   const handleAuditAndFixPNG = async () => {
@@ -639,6 +665,7 @@ export function ChatMessagesView({
                       mdComponents={mdComponents}
                       handleCopy={handleCopy}
                       copiedMessageId={copiedMessageId}
+                      messages={messages}
                     />
                   )}
                 </div>

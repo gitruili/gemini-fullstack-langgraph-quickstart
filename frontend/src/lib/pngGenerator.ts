@@ -9,6 +9,28 @@ export interface PngGenerationCallbacks {
   setGeneratedPNGs: (pngs: string[]) => void;
 }
 
+// Interface for additional content to be included in ZIP package
+export interface PngAdditionalContent {
+  aiResponseContent: string;
+  xiaohongshuTitle: string;
+  xiaohongshuBody: string;
+  userQuestion: string;
+}
+
+// Helper function to create safe filename from user question
+const createSafeFilename = (userQuestion: string): string => {
+  return userQuestion
+    .slice(0, 50)
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .replace(/\s+/g, '_')
+    .toLowerCase() || 'ai_response';
+};
+
+// Helper function to create timestamp
+const createTimestamp = (): string => {
+  return new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+};
+
 export interface PngAuditCallbacks {
   setIsAuditingPNG: (loading: boolean) => void;
   setAuditError: (error: string | null) => void;
@@ -18,7 +40,8 @@ export interface PngAuditCallbacks {
 // Core PNG generation function
 export const generatePNG = async (
   generatedHTML: string,
-  callbacks: PngGenerationCallbacks
+  callbacks: PngGenerationCallbacks,
+  additionalContent?: PngAdditionalContent
 ): Promise<void> => {
   if (!generatedHTML) {
     alert('请先生成HTML代码');
@@ -102,15 +125,53 @@ export const generatePNG = async (
       
       pngDataUrls.push(dataUrl);
       
-      // Single page download
-      const link = document.createElement('a');
-      link.download = `infographic-${new Date().getTime()}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      console.log('单页PNG生成成功');
+      // If additional content is provided, create ZIP even for single page
+      if (additionalContent) {
+        const zip = new JSZip();
+        
+        // Add PNG to ZIP
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        zip.file('infographic.png', blob);
+        
+        // Add additional content files
+        const timestamp = createTimestamp();
+        const safeFilename = createSafeFilename(additionalContent.userQuestion);
+        
+        // Add MD file with AI response
+        const mdContent = additionalContent.aiResponseContent;
+        zip.file(`${safeFilename}_${timestamp}.md`, mdContent);
+        
+        // Add title.txt with selected Xiaohongshu title
+        zip.file('title.txt', additionalContent.xiaohongshuTitle);
+        
+        // Add body.txt with Xiaohongshu body content
+        zip.file('body.txt', additionalContent.xiaohongshuBody);
+        
+        console.log('已添加额外文件到ZIP包中');
+        
+        // Download ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = `infographic-${new Date().getTime()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        
+        console.log('单页PNG+额外文件打包下载成功');
+      } else {
+        // Single page download without additional content
+        const link = document.createElement('a');
+        link.download = `infographic-${new Date().getTime()}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('单页PNG生成成功');
+      }
     } else {
       // Multiple pages - create ZIP
       const zip = new JSZip();
@@ -161,6 +222,24 @@ export const generatePNG = async (
           console.error(`第 ${i + 1} 页截取失败:`, pageError);
           callbacks.setPngError(`第 ${i + 1} 页截取失败: ${pageError instanceof Error ? pageError.message : '未知错误'}`);
         }
+      }
+      
+      // Add additional content files to ZIP if provided
+      if (additionalContent) {
+        const timestamp = createTimestamp();
+        const safeFilename = createSafeFilename(additionalContent.userQuestion);
+        
+        // Add MD file with AI response
+        const mdContent = additionalContent.aiResponseContent;
+        zip.file(`${safeFilename}_${timestamp}.md`, mdContent);
+        
+        // Add title.txt with selected Xiaohongshu title
+        zip.file('title.txt', additionalContent.xiaohongshuTitle);
+        
+        // Add body.txt with Xiaohongshu body content
+        zip.file('body.txt', additionalContent.xiaohongshuBody);
+        
+        console.log('已添加额外文件到ZIP包中');
       }
       
       // Generate and download ZIP

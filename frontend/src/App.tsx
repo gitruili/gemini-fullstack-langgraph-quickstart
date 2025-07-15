@@ -6,21 +6,27 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { Button } from "@/components/ui/button";
 
-// Add saveToFile function
-const saveToFile = (content: string, filename: string, format: 'txt' | 'md' = 'md') => {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-  const extension = format;
-  const fullFilename = `${filename}_${timestamp}.${extension}`;
+
+
+// Function to extract AI response content for MD file
+export const extractAIResponseContent = (messages: Message[]): { aiResponse: string; userQuestion: string } => {
+  if (messages.length === 0) {
+    return { aiResponse: '', userQuestion: '' };
+  }
   
-  const blob = new Blob([content], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fullFilename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const lastMessage = messages[messages.length - 1];
+  const aiResponse = lastMessage && lastMessage.type === "ai" 
+    ? (typeof lastMessage.content === "string" ? lastMessage.content : JSON.stringify(lastMessage.content))
+    : '';
+  
+  // Find the user's question for filename
+  const messageIndex = messages.findIndex(msg => msg.id === lastMessage?.id);
+  const previousMessage = messageIndex > 0 ? messages[messageIndex - 1] : null;
+  const userQuestion = previousMessage && previousMessage.type === "human" 
+    ? (typeof previousMessage.content === "string" ? previousMessage.content : "query")
+    : "ai_response";
+  
+  return { aiResponse, userQuestion };
 };
 
 export default function App() {
