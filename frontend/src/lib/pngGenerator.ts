@@ -31,6 +31,69 @@ const createTimestamp = (): string => {
   return new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
 };
 
+// Helper function to calculate optimal dimensions for element
+const calculateOptimalDimensions = (element: HTMLElement): { width: number; height: number } => {
+  const rect = element.getBoundingClientRect();
+  const computedStyle = window.getComputedStyle(element);
+  
+  // Get actual content dimensions including padding but excluding margin
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+  const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+  
+  const contentWidth = Math.max(
+    element.scrollWidth,
+    element.offsetWidth,
+    rect.width + paddingLeft + paddingRight
+  );
+  
+  const contentHeight = Math.max(
+    element.scrollHeight,
+    element.offsetHeight,
+    rect.height + paddingTop + paddingBottom
+  );
+  
+  // For fixed-size designs, prefer the standard social media dimensions
+  // But allow flexibility for content that doesn't fit
+  const targetWidth = 448;
+  const targetHeight = 597;
+  
+  // If content is close to target size, use target size to avoid scaling issues
+  const widthTolerance = 50;
+  const heightTolerance = 50;
+  
+  const finalWidth = Math.abs(contentWidth - targetWidth) <= widthTolerance ? 
+    targetWidth : Math.max(contentWidth, 400);
+  const finalHeight = Math.abs(contentHeight - targetHeight) <= heightTolerance ? 
+    targetHeight : Math.max(contentHeight, 500);
+  
+  return {
+    width: Math.ceil(finalWidth),
+    height: Math.ceil(finalHeight)
+  };
+};
+
+// Helper function to detect if element has custom background
+const detectBackground = (element: HTMLElement): string => {
+  const computedStyle = window.getComputedStyle(element);
+  const bgColor = computedStyle.backgroundColor;
+  const bgImage = computedStyle.backgroundImage;
+  
+  // If element has non-transparent background, use transparent for PNG
+  if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+    return 'transparent';
+  }
+  
+  // If element has background image, use transparent
+  if (bgImage !== 'none') {
+    return 'transparent';
+  }
+  
+  // Default to white for elements without background
+  return '#ffffff';
+};
+
 export interface PngAuditCallbacks {
   setIsAuditingPNG: (loading: boolean) => void;
   setAuditError: (error: string | null) => void;
@@ -62,7 +125,7 @@ export const generatePNG = async (
     iframe.style.width = '448px';
     iframe.style.height = '597px';
     iframe.style.border = 'none';
-    iframe.style.background = '#ffffff';
+    iframe.style.background = 'transparent';
     
     document.body.appendChild(iframe);
     
@@ -111,16 +174,26 @@ export const generatePNG = async (
     if (validPages.length === 0) {
       console.log('未找到页面元素，尝试截取整个body');
       // If no specific pages found, capture the whole body
+      
+      // Calculate optimal dimensions for the body
+      const dimensions = calculateOptimalDimensions(iframeBody);
+      const background = detectBackground(iframeBody);
+      
+      console.log(`优化尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
+      
       const dataUrl = await htmlToImage.toPng(iframeBody, {
-        width: 448,
-        height: 597,
+        width: dimensions.width,
+        height: dimensions.height,
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top left',
         },
         quality: 1.0,
         pixelRatio: 2,
-        backgroundColor: '#ffffff',
+        backgroundColor: background,
+        // Add options to better handle content boundaries
+        skipAutoScale: true,
+        includeQueryParams: true,
       });
       
       pngDataUrls.push(dataUrl);
@@ -198,16 +271,25 @@ export const generatePNG = async (
         await new Promise(resolve => setTimeout(resolve, 500));
         
         try {
+          // Calculate optimal dimensions for this page
+          const dimensions = calculateOptimalDimensions(page);
+          const background = detectBackground(page);
+          
+          console.log(`第 ${i + 1} 页优化尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
+          
           const dataUrl = await htmlToImage.toPng(page, {
-            width: 448,
-            height: 597,
+            width: dimensions.width,
+            height: dimensions.height,
             style: {
               transform: 'scale(1)',
               transformOrigin: 'top left',
             },
             quality: 1.0,
             pixelRatio: 2,
-            backgroundColor: '#ffffff',
+            backgroundColor: background,
+            // Add options to better handle content boundaries
+            skipAutoScale: true,
+            includeQueryParams: true,
           });
           
           pngDataUrls.push(dataUrl);
