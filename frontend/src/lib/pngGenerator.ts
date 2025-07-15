@@ -372,17 +372,24 @@ export const generatePNG = async (
           element.style.visibility = 'hidden';
         });
         
-        // Show only the current page
-        page.style.display = 'block';
+        // Show only the current page and ensure proper positioning
+        page.style.display = 'flex';
         page.style.opacity = '1';
         page.style.visibility = 'visible';
-        page.style.position = 'relative';
+        page.style.position = 'absolute';
+        page.style.top = '0px';
+        page.style.left = '0px';
+        page.style.width = '448px';
+        page.style.height = '597px';
         page.style.zIndex = '1000';
+        page.style.transform = 'none';
+        page.style.margin = '0';
+        page.style.padding = '32px';
+        page.style.boxSizing = 'border-box';
         
-        // Fix common layout issues for PNG generation
-        const pageStyle = window.getComputedStyle(page);
-        if (pageStyle.position === 'absolute') {
-          page.style.position = 'relative';
+        // Ensure proper flexbox alignment
+        if (!page.style.flexDirection) {
+          page.style.flexDirection = 'column';
         }
         
         // Fix absolute positioned children for better screenshot compatibility
@@ -411,24 +418,41 @@ export const generatePNG = async (
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         try {
-          // Calculate dimensions for this specific page
-          const dimensions = calculateOptimalDimensions(page);
+          // Use fixed dimensions for consistent screenshots
+          const fixedWidth = 448;
+          const fixedHeight = 597;
           const background = detectBackground(page, defaultOptions);
           
-          console.log(`第 ${i + 1} 页尺寸: ${dimensions.width}x${dimensions.height}, 背景: ${background}`);
+          console.log(`第 ${i + 1} 页尺寸: ${fixedWidth}x${fixedHeight}, 背景: ${background}`);
+          
+          // Force a re-render to ensure layout is correct
+          await new Promise(resolve => setTimeout(resolve, 200));
           
           const dataUrl = await htmlToImage.toPng(page, {
-            width: dimensions.width,
-            height: dimensions.height,
+            width: fixedWidth,
+            height: fixedHeight,
             style: {
               transform: 'scale(1)',
               transformOrigin: 'top left',
+              position: 'absolute',
+              top: '0px',
+              left: '0px',
             },
             quality: 1.0,
             pixelRatio: 2,
             backgroundColor: background,
-            cacheBust: true, // Force refresh for each page
+            cacheBust: true,
             skipAutoScale: true,
+            // Add specific positioning options
+            filter: (node) => {
+              // Skip navigation elements that might interfere
+              if (node.id === 'page-indicator' || 
+                  node.className?.includes?.('nav-button') ||
+                  node.tagName === 'BUTTON') {
+                return false;
+              }
+              return true;
+            },
           });
           
           pngDataUrls.push(dataUrl);
