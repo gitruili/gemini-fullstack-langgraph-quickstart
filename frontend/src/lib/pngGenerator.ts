@@ -264,7 +264,7 @@ export const generatePNG = async (
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipBlob);
-        link.download = `infographic-${new Date().getTime()}.zip`;
+        link.download = `${safeFilename}_${timestamp}.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -343,11 +343,14 @@ export const generatePNG = async (
         }
       }
       
+      // Prepare filename components
+      const timestamp = createTimestamp();
+      const safeFilename = additionalContent 
+        ? createSafeFilename(additionalContent.userQuestion)
+        : 'infographic_pages';
+      
       // Add additional content files to ZIP if provided
       if (additionalContent) {
-        const timestamp = createTimestamp();
-        const safeFilename = createSafeFilename(additionalContent.userQuestion);
-        
         // Add MD file with AI response
         const mdContent = additionalContent.aiResponseContent;
         zip.file(`${safeFilename}_${timestamp}.md`, mdContent);
@@ -365,7 +368,7 @@ export const generatePNG = async (
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(zipBlob);
-      link.download = `infographic-pages-${new Date().getTime()}.zip`;
+      link.download = `${safeFilename}_${timestamp}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
