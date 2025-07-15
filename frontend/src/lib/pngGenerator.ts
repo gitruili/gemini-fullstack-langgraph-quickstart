@@ -251,15 +251,24 @@ export const generatePNG = async (
         const timestamp = createTimestamp();
         const safeFilename = createSafeFilename(additionalContent.userQuestion);
         
-        // Add MD file with AI response
+        // Add MD file with AI response (UTF-8 encoded)
         const mdContent = additionalContent.aiResponseContent;
-        zip.file(`${safeFilename}_${timestamp}.md`, mdContent);
+        zip.file(`${safeFilename}_${timestamp}.md`, mdContent, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
-        // Add title.txt with selected Xiaohongshu title
-        zip.file('title.txt', additionalContent.xiaohongshuTitle);
+        // Add title.txt with selected Xiaohongshu title (UTF-8 encoded)
+        zip.file('title.txt', additionalContent.xiaohongshuTitle, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
-        // Add body.txt with Xiaohongshu body content
-        zip.file('body.txt', additionalContent.xiaohongshuBody);
+        // Add body.txt with Xiaohongshu body content (UTF-8 encoded)
+        zip.file('body.txt', additionalContent.xiaohongshuBody, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
         console.log('已添加额外文件到ZIP包中');
         
@@ -347,15 +356,24 @@ export const generatePNG = async (
       
       // Add additional content files to ZIP if provided
       if (additionalContent) {
-        // Add MD file with AI response
+        // Add MD file with AI response (UTF-8 encoded)
         const mdContent = additionalContent.aiResponseContent;
-        zip.file(`${safeFilename}_${timestamp}.md`, mdContent);
+        zip.file(`${safeFilename}_${timestamp}.md`, mdContent, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
-        // Add title.txt with selected Xiaohongshu title
-        zip.file('title.txt', additionalContent.xiaohongshuTitle);
+        // Add title.txt with selected Xiaohongshu title (UTF-8 encoded)
+        zip.file('title.txt', additionalContent.xiaohongshuTitle, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
-        // Add body.txt with Xiaohongshu body content
-        zip.file('body.txt', additionalContent.xiaohongshuBody);
+        // Add body.txt with Xiaohongshu body content (UTF-8 encoded)
+        zip.file('body.txt', additionalContent.xiaohongshuBody, {
+          binary: false,
+          // 明确指定UTF-8编码，避免乱码问题
+        });
         
         console.log('已添加额外文件到ZIP包中');
       }
