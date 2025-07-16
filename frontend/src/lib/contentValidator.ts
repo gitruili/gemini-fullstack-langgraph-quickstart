@@ -63,6 +63,7 @@ ${firstPageContent}
    - 增加实用价值和可操作性
    - 保持内容的趣味性和可读性
    - 确保标题吸引但不夸张（每个标题限制在20字以内）
+   - 标签数量限制在10个以内（#标签格式）
 
 ### 设计蓝图第一页优化：
 1. **视觉吸引力提升**：
@@ -100,7 +101,8 @@ ${firstPageContent}
 2. 保持内容的实用性和价值性
 3. 优化后的第一页要显著提升视觉吸引力
 4. 确保所有内容都是正面、积极、合规的
-5. 免责声明必须自然融入，不显突兀`;
+5. 免责声明必须自然融入，不显突兀
+6. 标签数量严格限制在10个以内（#标签格式）`;
 
   try {
     const ai = new GoogleGenAI({
@@ -193,9 +195,15 @@ const parseValidationResponse = (response: string, originalBlueprint: BlueprintR
       
       const updatedBlueprint = `信息图 1 / ${totalPages}\n${jsonResult.optimizedFirstPage}${restOfBlueprint ? '\n\n信息图 2 / ' + totalPages + restOfBlueprint : ''}`;
       
+      // Apply hashtag limiting to the optimized content
+      const optimizedContent = limitHashtags(jsonResult.optimizedXiaohongshu.content);
+      
       return {
         originalXiaohongshu: originalBlueprint.xiaohongshu,
-        optimizedXiaohongshu: jsonResult.optimizedXiaohongshu,
+        optimizedXiaohongshu: {
+          ...jsonResult.optimizedXiaohongshu,
+          content: optimizedContent
+        },
         originalFirstPage: originalFirstPage,
         optimizedFirstPage: jsonResult.optimizedFirstPage,
         blueprint: updatedBlueprint
@@ -208,6 +216,24 @@ const parseValidationResponse = (response: string, originalBlueprint: BlueprintR
     console.error('Failed to parse validation response:', error);
     return generateFallbackValidation(originalBlueprint, originalFirstPage);
   }
+};
+
+// Helper function to limit hashtags to maximum 10
+const limitHashtags = (content: string): string => {
+  // Find all hashtags in the content
+  const hashtagRegex = /#[\u4e00-\u9fa5a-zA-Z0-9_]+/g;
+  const hashtags = content.match(hashtagRegex) || [];
+  
+  if (hashtags.length <= 10) {
+    return content; // No change needed
+  }
+  
+  // If more than 10 hashtags, keep only the first 10
+  const limitedHashtags = hashtags.slice(0, 10);
+  
+  // Replace all hashtags in content with only the first 10
+  const contentWithoutHashtags = content.replace(hashtagRegex, '');
+  return contentWithoutHashtags.trim() + '\n' + limitedHashtags.join(' ');
 };
 
 // Generate fallback validation result
@@ -225,11 +251,14 @@ const generateFallbackValidation = (originalBlueprint: BlueprintResult, original
       .substring(0, 20);
   });
   
-  const optimizedContent = originalBlueprint.xiaohongshu.content
+  let optimizedContent = originalBlueprint.xiaohongshu.content
     .replace(/点赞|收藏|关注|转发|双击/g, '')
     .replace(/月入\d+万|暴富|搞钱|财富自由/g, '个人经验')
     .replace(/一定能|100%|保证/g, '可能会')
     + '\n\n💡 温馨提示：以上内容仅为个人经验分享，效果因人而异，请结合自身情况理性实践。';
+  
+  // Limit hashtags to maximum 10
+  optimizedContent = limitHashtags(optimizedContent);
   
   // Create more attractive first page
   const optimizedFirstPage = `页面类型：封面页面
