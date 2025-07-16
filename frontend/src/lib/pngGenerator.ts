@@ -491,10 +491,8 @@ export const generatePNG = async (
         page.style.padding = '32px';
         page.style.boxSizing = 'border-box';
         
-        // Ensure proper flexbox alignment
-        if (!page.style.flexDirection) {
-          page.style.flexDirection = 'column';
-        }
+        // Preserve original flexbox layout - don't force any direction
+        // This ensures left-right layouts stay left-right and top-bottom layouts stay top-bottom
         
         // Fix absolute positioned children for better screenshot compatibility
         const absoluteElements = page.querySelectorAll('[style*="position: absolute"], .footer');
