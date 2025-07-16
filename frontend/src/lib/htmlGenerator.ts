@@ -22,6 +22,7 @@ Requirements:
 5. No external images - use CSS gradients and Emoji icons
 6. Modern CSS: Flexbox, Grid, gradients
 7. Font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+8. CRITICAL: Each page MUST have both proper ID and class: id="page-1" class="page page-1", id="page-2" class="page page-2", etc.
 
 CRITICAL Design Quality Requirements:
 - HIGH CONTRAST COLORS: Ensure text has minimum 4.5:1 contrast ratio against backgrounds
@@ -97,7 +98,13 @@ Core Principles:
 - READABLE CONTENT: Ensure all text is properly sized and clearly visible
 - RELIABLE CODE: Generate functional code that renders correctly every time
 
-Always provide complete, runnable code with all specified pages that render reliably.`,
+Always provide complete, runnable code with all specified pages that render reliably.
+
+MANDATORY PAGE STRUCTURE: Each page element must have both proper ID and class attributes:
+- Page 1: <div id="page-1" class="page page-1">
+- Page 2: <div id="page-2" class="page page-2">  
+- Page 3: <div id="page-3" class="page page-3">
+- etc.`,
         }
       ],
     };

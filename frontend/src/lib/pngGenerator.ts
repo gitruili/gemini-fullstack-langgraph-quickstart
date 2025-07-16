@@ -319,8 +319,11 @@ export const generatePNG = async (
         return false;
       }
       
-      // Only process elements that are actually page content (have specific page IDs)
-      if (!element.id || !element.id.match(/^page-?\d+$/)) {
+      // Only process elements that are actually page content (have specific page IDs or class patterns)
+      const hasValidId = element.id && element.id.match(/^page-?\d+$/);
+      const hasValidClass = element.className && element.className.match(/page\s+page-\d+/);
+      
+      if (!hasValidId && !hasValidClass) {
         console.log(`跳过非页面元素: ${element.id || element.className}`);
         return false;
       }
@@ -352,7 +355,7 @@ export const generatePNG = async (
       
       const isValidPage = (hasContent || hasChild) && actualHeight > 100 && actualWidth > 100;
       
-      console.log(`页面 ${element.id || element.className} - 内容: ${actualContent}字符, 子元素: ${element.children.length}, 尺寸: ${actualWidth}x${actualHeight}, 有效: ${isValidPage}`);
+      console.log(`页面 ${element.id || element.className} - 内容: ${actualContent}字符, 子元素: ${element.children.length}, 尺寸: ${actualWidth}x${actualHeight}, 有效ID: ${hasValidId}, 有效Class: ${hasValidClass}, 有效: ${isValidPage}`);
       
       return isValidPage;
     });
