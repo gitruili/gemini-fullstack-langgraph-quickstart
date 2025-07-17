@@ -331,8 +331,6 @@ export const generatePNG = async (
       // More lenient content and visibility checks
       const hasContent = element.textContent && element.textContent.trim().length > 20; // Reduced from 50
       const hasChild = element.children.length > 0; // Reduced from 1
-      const hasMinHeight = element.offsetHeight > 100; // Reduced from 200
-      const hasMinWidth = element.offsetWidth > 100;
       
       // Force visibility for hidden pages (they might be hidden by default navigation)
       const originalDisplay = element.style.display;

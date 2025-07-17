@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { SquarePen, Brain, Send, StopCircle, Zap, Cpu } from "lucide-react";
+import { SquarePen, Brain, StopCircle, Zap, Cpu, Search, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -12,7 +12,7 @@ import {
 
 // Updated InputFormProps
 interface InputFormProps {
-  onSubmit: (inputValue: string, effort: string, model: string) => void;
+  onSubmit: (inputValue: string, effort: string, model: string, mode: 'search' | 'direct') => void;
   onCancel: () => void;
   isLoading: boolean;
   hasHistory: boolean;
@@ -27,11 +27,12 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [internalInputValue, setInternalInputValue] = useState("");
   const [effort, setEffort] = useState("medium");
   const [model, setModel] = useState("gemini-2.5-flash");
+  const [mode, setMode] = useState<'search' | 'direct'>("search");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!internalInputValue.trim()) return;
-    onSubmit(internalInputValue, effort, model);
+    onSubmit(internalInputValue, effort, model, mode);
     setInternalInputValue("");
   };
 
@@ -59,7 +60,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Who won the Euro 2024 and scored the most goals?"
+          placeholder={mode === "search" ? "Who won the Euro 2024 and scored the most goals?" : "Paste your text here to generate blueprint directly..."}
           className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none
                         md:text-base  min-h-[56px] max-h-[200px]`}
           rows={1}
@@ -82,12 +83,23 @@ export const InputForm: React.FC<InputFormProps> = ({
               className={`${
                 isSubmitDisabled
                   ? "text-neutral-500"
-                  : "text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                  : mode === "search" 
+                    ? "text-blue-500 hover:text-blue-400 hover:bg-blue-500/10"
+                    : "text-green-500 hover:text-green-400 hover:bg-green-500/10"
               } p-2 cursor-pointer rounded-full transition-all duration-200 text-base`}
               disabled={isSubmitDisabled}
             >
-              Search
-              <Send className="h-5 w-5" />
+              {mode === "search" ? (
+                <>
+                  Search
+                  <Search className="h-5 w-5" />
+                </>
+              ) : (
+                <>
+                  Generate
+                  <FileText className="h-5 w-5" />
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -96,35 +108,62 @@ export const InputForm: React.FC<InputFormProps> = ({
         <div className="flex flex-row gap-2">
           <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
             <div className="flex flex-row items-center text-sm">
-              <Brain className="h-4 w-4 mr-2" />
-              Effort
+              {mode === "search" ? <Search className="h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+              Mode
             </div>
-            <Select value={effort} onValueChange={setEffort}>
+            <Select value={mode} onValueChange={(value) => setMode(value as 'search' | 'direct')}>
               <SelectTrigger className="w-[120px] bg-transparent border-none cursor-pointer">
-                <SelectValue placeholder="Effort" />
+                <SelectValue placeholder="Mode" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
                 <SelectItem
-                  value="low"
+                  value="search"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
-                  Low
+                  Search
                 </SelectItem>
                 <SelectItem
-                  value="medium"
+                  value="direct"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
-                  Medium
-                </SelectItem>
-                <SelectItem
-                  value="high"
-                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
-                >
-                  High
+                  Direct
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {mode === "search" && (
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
+              <div className="flex flex-row items-center text-sm">
+                <Brain className="h-4 w-4 mr-2" />
+                Effort
+              </div>
+              <Select value={effort} onValueChange={setEffort}>
+                <SelectTrigger className="w-[120px] bg-transparent border-none cursor-pointer">
+                  <SelectValue placeholder="Effort" />
+                </SelectTrigger>
+                <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+                  <SelectItem
+                    value="low"
+                    className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  >
+                    Low
+                  </SelectItem>
+                  <SelectItem
+                    value="medium"
+                    className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  >
+                    Medium
+                  </SelectItem>
+                  <SelectItem
+                    value="high"
+                    className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                  >
+                    High
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
             <div className="flex flex-row items-center text-sm ml-2">
               <Cpu className="h-4 w-4 mr-2" />

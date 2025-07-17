@@ -149,15 +149,30 @@ export default function App() {
   }, [thread.messages, thread.isLoading, processedEventsTimeline]);
 
   const handleSubmit = useCallback(
-    (submittedInputValue: string, effort: string, model: string) => {
+    (submittedInputValue: string, effort: string, model: string, mode: 'search' | 'direct' = 'search') => {
       if (!submittedInputValue.trim()) return;
+      
+      if (mode === 'direct') {
+        // Direct mode: skip search, directly generate blueprint
+        setProcessedEventsTimeline([
+          {
+            title: "Direct Blueprint Generation",
+            data: "Generating blueprint from provided text...",
+          }
+        ]);
+        
+        // Direct mode messages are handled by the ChatMessagesView component
+        
+        // In direct mode, we don't use thread.submit, the frontend will handle blueprint generation
+        // The message will trigger the blueprint generation in the ChatMessagesView component
+        return;
+      }
+
+      // Search mode: existing LangGraph flow
       setProcessedEventsTimeline([]);
       hasFinalizeEventOccurredRef.current = false;
 
       // convert effort to, initial_search_query_count and max_research_loops
-      // low means max 1 loop and 1 query
-      // medium means max 3 loops and 3 queries
-      // high means max 10 loops and 5 queries
       let initial_search_query_count = 0;
       let max_research_loops = 0;
       switch (effort) {
