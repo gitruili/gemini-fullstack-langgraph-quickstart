@@ -148,23 +148,82 @@ export default function App() {
     }
   }, [thread.messages, thread.isLoading, processedEventsTimeline]);
 
+  const handleDirectModeProcessing = async (content: string) => {
+    // Import the processing functions
+    const { generateBlueprint } = await import('@/lib/blueprintGenerator');
+    const { validateAndOptimizeContent, getOptimizedBlueprintResult } = await import('@/lib/contentValidator');
+    const { generateHTML } = await import('@/lib/htmlGenerator');
+    const { generatePNG } = await import('@/lib/pngGenerator');
+    
+    try {
+      // Step 1: Generate blueprint from content
+      setProcessedEventsTimeline([
+        {
+          title: "Direct Blueprint Generation",
+          data: "Generating blueprint from provided text...",
+        },
+        {
+          title: "Content Validation",
+          data: "Optimizing content for platform compliance...",
+        },
+        {
+          title: "HTML Generation",
+          data: "Creating visual HTML representation...",
+        },
+        {
+          title: "PNG Generation",
+          data: "Converting HTML to downloadable PNG images...",
+        }
+      ]);
+
+      console.log('Direct mode: Starting blueprint generation...');
+      const blueprintResult = await generateBlueprint(content);
+      console.log('Direct mode: Blueprint generated', blueprintResult);
+
+      // Step 2: Validate and optimize content
+      console.log('Direct mode: Validating content...');
+      const validationResult = await validateAndOptimizeContent(blueprintResult);
+      const optimizedBlueprint = getOptimizedBlueprintResult(validationResult);
+      console.log('Direct mode: Content optimized', optimizedBlueprint);
+
+      // Step 3: Generate HTML
+      console.log('Direct mode: Generating HTML...');
+      const generatedHTML = await generateHTML(optimizedBlueprint.blueprint);
+      console.log('Direct mode: HTML generated', generatedHTML.length, 'characters');
+
+      // Step 4: Generate PNG and ZIP
+      console.log('Direct mode: Generating PNG...');
+      const pngCallbacks = {
+        setIsGeneratingPNG: (_loading: boolean) => {},
+        setPngError: (_error: string | null) => {},
+        setGeneratedPNGs: (_pngs: string[]) => {},
+      };
+
+      const additionalContent = {
+        aiResponseContent: optimizedBlueprint.xiaohongshu.content,
+        xiaohongshuTitle: optimizedBlueprint.xiaohongshu.titles[0] || '内容总结',
+        xiaohongshuBody: optimizedBlueprint.xiaohongshu.content,
+        userQuestion: content,
+      };
+
+      await generatePNG(generatedHTML, pngCallbacks, additionalContent);
+      console.log('Direct mode: Processing completed');
+
+    } catch (error) {
+      console.error('Direct mode processing error:', error);
+      setError(error instanceof Error ? error.message : 'Direct mode processing failed');
+    } finally {
+      setProcessedEventsTimeline([]);
+    }
+  };
+
   const handleSubmit = useCallback(
     (submittedInputValue: string, effort: string, model: string, mode: 'search' | 'direct' = 'search') => {
       if (!submittedInputValue.trim()) return;
       
       if (mode === 'direct') {
-        // Direct mode: skip search, directly generate blueprint
-        setProcessedEventsTimeline([
-          {
-            title: "Direct Blueprint Generation",
-            data: "Generating blueprint from provided text...",
-          }
-        ]);
-        
-        // Direct mode messages are handled by the ChatMessagesView component
-        
-        // In direct mode, we don't use thread.submit, the frontend will handle blueprint generation
-        // The message will trigger the blueprint generation in the ChatMessagesView component
+        // Direct mode: skip search, directly generate blueprint and follow-up content
+        handleDirectModeProcessing(submittedInputValue);
         return;
       }
 
